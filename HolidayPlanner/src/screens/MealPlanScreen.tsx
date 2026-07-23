@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
 import { Meal } from '../types';
+import DatePickerField from '../components/DatePickerField';
 
 export default function MealPlanScreen() {
   const { t } = useTranslation();
@@ -65,7 +66,7 @@ export default function MealPlanScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>{t('addMeal')}</Text>
-            <TextInput style={styles.input} placeholder={`${t('date')} (YYYY-MM-DD)`} value={selectedDate} onChangeText={setSelectedDate} />
+            <DatePickerField placeholder={t('date')} value={selectedDate} onChange={setSelectedDate} />
             <TextInput style={styles.input} placeholder={t('breakfast')} value={breakfast} onChangeText={setBreakfast} />
             <TextInput style={styles.input} placeholder={t('lunch')} value={lunch} onChangeText={setLunch} />
             <TextInput style={styles.input} placeholder={t('dinner')} value={dinner} onChangeText={setDinner} />

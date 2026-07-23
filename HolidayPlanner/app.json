@@ -1,8 +1,9 @@
 {
   "expo": {
-    "name": "HolidayPlanner",
+    "name": "Apalucha Planner",
     "slug": "HolidayPlanner",
     "version": "1.0.0",
+    "scheme": "holidayplanner",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -26,6 +27,9 @@
       "eas": {
         "projectId": "f0319b92-6d0a-4e86-8d23-e5d5d8bb7a28"
       }
-    }
+    },
+    "plugins": [
+      "@react-native-community/datetimepicker"
+    ]
   }
 }

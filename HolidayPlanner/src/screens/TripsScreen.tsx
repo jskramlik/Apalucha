@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
 import { Trip } from '../types';
+import DatePickerField from '../components/DatePickerField';
 
 export default function TripsScreen() {
   const { t } = useTranslation();
@@ -69,7 +70,7 @@ export default function TripsScreen() {
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>{t('addTrip')}</Text>
             <TextInput style={styles.input} placeholder={t('name')} value={title} onChangeText={setTitle} />
-            <TextInput style={styles.input} placeholder={`${t('date')} (YYYY-MM-DD)`} value={date} onChangeText={setDate} />
+            <DatePickerField placeholder={t('date')} value={date} onChange={setDate} />
             <TextInput style={styles.input} placeholder={t('location')} value={location} onChangeText={setLocation} />
             <TextInput style={styles.input} placeholder={t('notes')} value={notes} onChangeText={setNotes} multiline />
             <View style={styles.row}>

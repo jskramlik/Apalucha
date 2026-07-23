@@ -26,6 +26,13 @@ export interface Holiday {
   inviteCode: string;
 }
 
+export interface UserHoliday {
+  id: string;
+  holidayName: string;
+  role: UserRole;
+  joinedAt: string;
+}
+
 export interface Activity {
   id: string;
   title: string;

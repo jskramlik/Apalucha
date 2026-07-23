@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
 import { Member } from '../types';
 
@@ -27,6 +27,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [member, setMember] = useState<Member | null>(null);
   const [holidayId, setHolidayId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const backfilledRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     return onAuthStateChanged(auth, (firebaseUser) => {
@@ -47,8 +48,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     const unsub = onSnapshot(
       doc(db, 'holidays', holidayId, 'members', user.uid),
-      (snap) => {
-        setMember(snap.exists() ? ({ id: user.uid, ...snap.data() } as Member) : null);
+      async (snap) => {
+        if (snap.exists()) {
+          const data = snap.data() as Omit<Member, 'id'>;
+          setMember({ id: user.uid, ...data });
+
+          const backfillKey = `${user.uid}:${holidayId}`;
+          if (!backfilledRef.current.has(backfillKey)) {
+            backfilledRef.current.add(backfillKey);
+            const userHolidayRef = doc(db, 'userHolidays', user.uid, 'holidays', holidayId);
+            const userHolidaySnap = await getDoc(userHolidayRef);
+            if (!userHolidaySnap.exists()) {
+              const holidaySnap = await getDoc(doc(db, 'holidays', holidayId));
+              await setDoc(userHolidayRef, {
+                holidayName: holidaySnap.exists() ? holidaySnap.data().name : 'Apalucha',
+                role: data.role,
+                joinedAt: new Date().toISOString(),
+              });
+            }
+          }
+        } else {
+          setMember(null);
+        }
         setLoading(false);
       },
       () => setLoading(false)

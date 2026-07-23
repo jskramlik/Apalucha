@@ -61,7 +61,7 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>🏕️ Holiday Planner</Text>
+      <Text style={styles.title}>🏕️ Apalucha Planner</Text>
 
       <TextInput
         style={styles.input}

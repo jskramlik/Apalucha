@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import { collection, doc, setDoc, getDoc, query, where, getDocs } from 'firebase/firestore';
+import { collection, doc, setDoc, query, where, getDocs } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
+import { useNavigation } from '@react-navigation/native';
 import { auth, db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
+import DatePickerField from '../components/DatePickerField';
 
 // Jan's email is the admin
 const ADMIN_EMAIL = 'jan.skramlik@accenture.com';
@@ -15,6 +17,7 @@ function generateCode() {
 export default function HolidaySetupScreen() {
   const { t } = useTranslation();
   const { setHolidayId } = useAuth();
+  const navigation = useNavigation();
   const [tab, setTab] = useState<'create' | 'join'>('create');
   const [name, setName] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -48,8 +51,14 @@ export default function HolidaySetupScreen() {
         photoUrl: '',
         totalPoints: 0,
       });
-      Alert.alert('Holiday Created!', `Invite code: ${code}`);
+      await setDoc(doc(db, 'userHolidays', user.uid, 'holidays', holidayRef.id), {
+        holidayName: name,
+        role: isAdmin ? 'admin' : 'dad',
+        joinedAt: new Date().toISOString(),
+      });
+      Alert.alert('Apalucha Created!', `Invite code: ${code}`);
       setHolidayId(holidayRef.id);
+      if (navigation.canGoBack()) navigation.goBack();
     } catch (e: any) {
       Alert.alert('Error', e.message);
     } finally {
@@ -73,13 +82,20 @@ export default function HolidaySetupScreen() {
         return;
       }
       const holidayDoc = snap.docs[0];
+      const holidayData = holidayDoc.data();
       await setDoc(doc(db, 'holidays', holidayDoc.id, 'members', user.uid), {
         name: displayName,
         role: isAdmin ? 'admin' : 'dad',
         photoUrl: '',
         totalPoints: 0,
       });
+      await setDoc(doc(db, 'userHolidays', user.uid, 'holidays', holidayDoc.id), {
+        holidayName: holidayData.name,
+        role: isAdmin ? 'admin' : 'dad',
+        joinedAt: new Date().toISOString(),
+      });
       setHolidayId(holidayDoc.id);
+      if (navigation.canGoBack()) navigation.goBack();
     } catch (e: any) {
       Alert.alert('Error', e.message);
     } finally {
@@ -89,7 +105,7 @@ export default function HolidaySetupScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>🏕️ Holiday Planner</Text>
+      <Text style={styles.title}>🏕️ Apalucha Planner</Text>
       <View style={styles.tabs}>
         <TouchableOpacity style={[styles.tab, tab === 'create' && styles.activeTab]} onPress={() => setTab('create')}>
           <Text style={[styles.tabText, tab === 'create' && styles.activeTabText]}>{t('createHoliday')}</Text>
@@ -104,8 +120,8 @@ export default function HolidaySetupScreen() {
       {tab === 'create' ? (
         <>
           <TextInput style={styles.input} placeholder={t('holidayName')} value={name} onChangeText={setName} />
-          <TextInput style={styles.input} placeholder={`${t('startDate')} (YYYY-MM-DD)`} value={startDate} onChangeText={setStartDate} />
-          <TextInput style={styles.input} placeholder={`${t('endDate')} (YYYY-MM-DD)`} value={endDate} onChangeText={setEndDate} />
+          <DatePickerField placeholder={t('startDate')} value={startDate} onChange={setStartDate} />
+          <DatePickerField placeholder={t('endDate')} value={endDate} onChange={setEndDate} />
           <TouchableOpacity style={styles.button} onPress={handleCreate} disabled={loading}>
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{t('createHoliday')}</Text>}
           </TouchableOpacity>

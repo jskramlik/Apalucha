@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView,
 import { doc, updateDoc, setDoc, deleteDoc, collection, onSnapshot, query, where } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
+import { useNavigation } from '@react-navigation/native';
 import i18n from '../i18n';
 import { auth, db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,6 +11,7 @@ import { Child } from '../types';
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
+  const navigation = useNavigation();
   const { user, member, holidayId } = useAuth();
   const [displayName, setDisplayName] = useState('');
   const [children, setChildren] = useState<Child[]>([]);
@@ -85,6 +87,10 @@ export default function ProfileScreen() {
       <TextInput style={styles.input} value={displayName} onChangeText={setDisplayName} />
       <TouchableOpacity style={styles.button} onPress={handleSaveName}><Text style={styles.buttonText}>{t('save')}</Text></TouchableOpacity>
 
+      <TouchableOpacity style={styles.switchHolidayButton} onPress={() => navigation.navigate('MyHolidays' as never)}>
+        <Text style={styles.switchHolidayText}>🔄 {t('switchHoliday')}</Text>
+      </TouchableOpacity>
+
       <Text style={styles.section}>{t('language')}</Text>
       <View style={styles.langRow}>
         <Text style={styles.langLabel}>EN</Text>
@@ -131,4 +137,6 @@ const styles = StyleSheet.create({
   addButton: { backgroundColor: '#2e7d32', borderRadius: 8, padding: 12, paddingHorizontal: 16 },
   logoutButton: { marginTop: 32, borderWidth: 1, borderColor: '#c62828', borderRadius: 8, padding: 14, alignItems: 'center' },
   logoutText: { color: '#c62828', fontWeight: '600', fontSize: 15 },
+  switchHolidayButton: { marginTop: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: '#2e7d32', borderRadius: 8, padding: 14, alignItems: 'center' },
+  switchHolidayText: { color: '#2e7d32', fontWeight: '600', fontSize: 15 },
 });

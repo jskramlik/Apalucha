@@ -38,7 +38,7 @@ export default function HomeScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>{holiday?.name ?? '🏕️ Holiday Planner'}</Text>
+      <Text style={styles.title}>{holiday?.name ?? '🏕️ Apalucha Planner'}</Text>
       <Text style={styles.date}>{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</Text>
 
       <Section title={t('activities')}>

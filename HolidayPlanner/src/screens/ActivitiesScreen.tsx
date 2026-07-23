@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
 import { Activity } from '../types';
+import DatePickerField from '../components/DatePickerField';
 
 export default function ActivitiesScreen() {
   const { t } = useTranslation();
@@ -70,7 +71,7 @@ export default function ActivitiesScreen() {
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>{t('addActivity')}</Text>
             <TextInput style={styles.input} placeholder={t('name')} value={title} onChangeText={setTitle} />
-            <TextInput style={styles.input} placeholder={`${t('date')} (YYYY-MM-DD)`} value={date} onChangeText={setDate} />
+            <DatePickerField placeholder={t('date')} value={date} onChange={setDate} />
             <TextInput style={styles.input} placeholder={t('time')} value={time} onChangeText={setTime} />
             <TextInput style={styles.input} placeholder={t('description')} value={description} onChangeText={setDescription} />
             <View style={styles.row}>
