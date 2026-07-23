@@ -1,33 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
+import { MONTH_NAMES, toIso, parseIso, nextMonth, previousMonth, buildCalendarCells } from '../utils/dateUtils';
 
 const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-
-function toIso(year: number, month: number, day: number): string {
-  const m = String(month + 1).padStart(2, '0');
-  const d = String(day).padStart(2, '0');
-  return `${year}-${m}-${d}`;
-}
-
-function parseIso(value: string): { year: number; month: number; day: number } | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!match) return null;
-  return { year: Number(match[1]), month: Number(match[2]) - 1, day: Number(match[3]) };
-}
-
-function daysInMonth(year: number, month: number): number {
-  return new Date(year, month + 1, 0).getDate();
-}
-
-// Monday-first weekday index (0 = Monday ... 6 = Sunday)
-function firstWeekdayOfMonth(year: number, month: number): number {
-  const jsDay = new Date(year, month, 1).getDay(); // 0 = Sunday
-  return (jsDay + 6) % 7;
-}
 
 interface Props {
   placeholder: string;
@@ -50,12 +25,9 @@ export default function DatePickerField({ placeholder, value, onChange }: Props)
   };
 
   const changeMonth = (delta: number) => {
-    let newMonth = viewMonth + delta;
-    let newYear = viewYear;
-    if (newMonth < 0) { newMonth = 11; newYear -= 1; }
-    if (newMonth > 11) { newMonth = 0; newYear += 1; }
-    setViewMonth(newMonth);
-    setViewYear(newYear);
+    const { year, month } = delta > 0 ? nextMonth(viewYear, viewMonth) : previousMonth(viewYear, viewMonth);
+    setViewYear(year);
+    setViewMonth(month);
   };
 
   const selectDay = (day: number) => {
@@ -63,9 +35,7 @@ export default function DatePickerField({ placeholder, value, onChange }: Props)
     setVisible(false);
   };
 
-  const totalDays = daysInMonth(viewYear, viewMonth);
-  const leadingBlanks = firstWeekdayOfMonth(viewYear, viewMonth);
-  const cells: (number | null)[] = [...Array(leadingBlanks).fill(null), ...Array.from({ length: totalDays }, (_, i) => i + 1)];
+  const cells = buildCalendarCells(viewYear, viewMonth);
 
   return (
     <>
