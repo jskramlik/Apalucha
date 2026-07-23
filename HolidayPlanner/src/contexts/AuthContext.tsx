@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
 import { Member } from '../types';
 
@@ -29,20 +29,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    return onAuthStateChanged(auth, async (firebaseUser) => {
+    return onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
-      if (!firebaseUser || !holidayId) {
+      if (!firebaseUser) {
         setMember(null);
         setLoading(false);
-        return;
       }
-      const snap = await getDoc(doc(db, 'holidays', holidayId, 'members', firebaseUser.uid));
-      if (snap.exists()) {
-        setMember({ id: firebaseUser.uid, ...snap.data() } as Member);
-      }
-      setLoading(false);
     });
-  }, [holidayId]);
+  }, []);
+
+  useEffect(() => {
+    if (!user || !holidayId) {
+      setMember(null);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const unsub = onSnapshot(
+      doc(db, 'holidays', holidayId, 'members', user.uid),
+      (snap) => {
+        setMember(snap.exists() ? ({ id: user.uid, ...snap.data() } as Member) : null);
+        setLoading(false);
+      },
+      () => setLoading(false)
+    );
+    return unsub;
+  }, [user, holidayId]);
 
   return (
     <AuthContext.Provider value={{ user, member, holidayId, setHolidayId, loading }}>

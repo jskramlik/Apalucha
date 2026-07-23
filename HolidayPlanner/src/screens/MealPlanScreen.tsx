@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import { doc, setDoc, onSnapshot, collection } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
@@ -34,9 +34,13 @@ export default function MealPlanScreen() {
   };
 
   const handleSave = async () => {
-    if (!selectedDate) return;
-    await setDoc(doc(db, 'holidays', holidayId!, 'meals', selectedDate), { breakfast, lunch, dinner, cook });
-    setModalVisible(false);
+    if (!selectedDate) { Alert.alert('Error', 'Date is required'); return; }
+    try {
+      await setDoc(doc(db, 'holidays', holidayId!, 'meals', selectedDate), { breakfast, lunch, dinner, cook });
+      setModalVisible(false);
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    }
   };
 
   return (

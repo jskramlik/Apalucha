@@ -25,15 +25,15 @@ export default function HomeScreen() {
       setActivities(snap.docs.map(d => ({ id: d.id, ...d.data() } as Activity)).filter(a => a.date === today));
     });
 
-    getDoc(doc(db, 'holidays', holidayId, 'meals', today)).then(snap => {
-      if (snap.exists()) setMeal(snap.data() as Meal);
+    const unsub2 = onSnapshot(doc(db, 'holidays', holidayId, 'meals', today), snap => {
+      setMeal(snap.exists() ? (snap.data() as Meal) : null);
     });
 
-    const unsub2 = onSnapshot(collection(db, 'holidays', holidayId, 'cleaning'), snap => {
+    const unsub3 = onSnapshot(collection(db, 'holidays', holidayId, 'cleaning'), snap => {
       setCleaningTasks(snap.docs.map(d => ({ id: d.id, ...d.data() } as CleaningTask)).filter(c => c.date === today && !c.done));
     });
 
-    return () => { unsub1(); unsub2(); };
+    return () => { unsub1(); unsub2(); unsub3(); };
   }, [holidayId, today]);
 
   return (

@@ -44,7 +44,7 @@ export default function LeaderboardScreen() {
             {item.photoUrl ? (
               <Image source={{ uri: item.photoUrl }} style={styles.avatar} />
             ) : (
-              <View style={styles.avatarPlaceholder}><Text style={styles.avatarLetter}>{item.name[0]}</Text></View>
+              <View style={styles.avatarPlaceholder}><Text style={styles.avatarLetter}>{(item.name?.[0] ?? '?').toUpperCase()}</Text></View>
             )}
             <Text style={styles.name}>{item.name}</Text>
             <Text style={styles.points}>{item.totalPoints ?? 0} pts</Text>

@@ -20,28 +20,32 @@ export default function CompetitionsScreen() {
 
   useEffect(() => {
     if (!holidayId) return;
-    const unsub1 = onSnapshot(collection(db, 'holidays', holidayId, 'competitions'), snap => {
+    let membersList: (Member | Child)[] = [];
+    let childrenList: (Member | Child)[] = [];
+
+    const unsubComps = onSnapshot(collection(db, 'holidays', holidayId, 'competitions'), snap => {
       setCompetitions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Competition)));
     });
-    const loadMembers = async () => {
-      const [mSnap, cSnap] = await Promise.all([
-        getDocs(collection(db, 'holidays', holidayId, 'members')),
-        getDocs(collection(db, 'holidays', holidayId, 'children')),
-      ]);
-      setMembers([
-        ...mSnap.docs.map(d => ({ id: d.id, ...d.data() } as Member)),
-        ...cSnap.docs.map(d => ({ id: d.id, ...d.data() } as Child)),
-      ]);
-    };
-    loadMembers();
-    return unsub1;
+    const unsubMembers = onSnapshot(collection(db, 'holidays', holidayId, 'members'), snap => {
+      membersList = snap.docs.map(d => ({ id: d.id, ...d.data() } as Member));
+      setMembers([...membersList, ...childrenList]);
+    });
+    const unsubChildren = onSnapshot(collection(db, 'holidays', holidayId, 'children'), snap => {
+      childrenList = snap.docs.map(d => ({ id: d.id, ...d.data() } as Child));
+      setMembers([...membersList, ...childrenList]);
+    });
+    return () => { unsubComps(); unsubMembers(); unsubChildren(); };
   }, [holidayId]);
 
   const handleAdd = async () => {
-    if (!name) return;
-    await addDoc(collection(db, 'holidays', holidayId!, 'competitions'), { name, description, scores: {} });
-    setName(''); setDescription('');
-    setAddModalVisible(false);
+    if (!name) { Alert.alert('Error', 'Name is required'); return; }
+    try {
+      await addDoc(collection(db, 'holidays', holidayId!, 'competitions'), { name, description, scores: {} });
+      setName(''); setDescription('');
+      setAddModalVisible(false);
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    }
   };
 
   const openScores = (comp: Competition) => {
@@ -56,24 +60,31 @@ export default function CompetitionsScreen() {
     if (!selectedComp) return;
     const numericScores: Record<string, number> = {};
     Object.entries(scores).forEach(([k, v]) => { numericScores[k] = parseInt(v) || 0; });
-    await updateDoc(doc(db, 'holidays', holidayId!, 'competitions', selectedComp.id), { scores: numericScores });
+    try {
+      await updateDoc(doc(db, 'holidays', holidayId!, 'competitions', selectedComp.id), { scores: numericScores });
 
-    // update totalPoints on each member/child
-    for (const m of members) {
-      const total = competitions.reduce((sum, c) => {
-        const s = c.id === selectedComp.id ? (numericScores[m.id] ?? 0) : (c.scores?.[m.id] ?? 0);
-        return sum + s;
-      }, 0);
-      const collName = (m as Child).parentUserId ? 'children' : 'members';
-      await updateDoc(doc(db, 'holidays', holidayId!, collName, m.id), { totalPoints: total });
+      // Re-read all competitions fresh so totals reflect the latest data
+      const compsSnap = await getDocs(collection(db, 'holidays', holidayId!, 'competitions'));
+      const freshComps = compsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Competition));
+
+      for (const m of members) {
+        const total = freshComps.reduce((sum, c) => sum + (c.scores?.[m.id] ?? 0), 0);
+        const collName = (m as Child).parentUserId ? 'children' : 'members';
+        await updateDoc(doc(db, 'holidays', holidayId!, collName, m.id), { totalPoints: total });
+      }
+      setScoreModalVisible(false);
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
     }
-    setScoreModalVisible(false);
   };
 
   const handleDelete = (id: string) => {
     Alert.alert('Delete', 'Remove this competition?', [
       { text: t('cancel'), style: 'cancel' },
-      { text: t('delete'), style: 'destructive', onPress: () => deleteDoc(doc(db, 'holidays', holidayId!, 'competitions', id)) },
+      { text: t('delete'), style: 'destructive', onPress: async () => {
+        try { await deleteDoc(doc(db, 'holidays', holidayId!, 'competitions', id)); }
+        catch (e: any) { Alert.alert('Error', e.message); }
+      } },
     ]);
   };
 

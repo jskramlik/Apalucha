@@ -1,6 +1,8 @@
 import { initializeApp } from 'firebase/app';
-import { initializeAuth, inMemoryPersistence } from 'firebase/auth';
+// @ts-ignore getReactNativePersistence is exported from the React Native build resolved by Metro at runtime
+import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyDaZCcpsdJeK3c4QXxI_8Vonpm8jf5eWIo',
@@ -14,6 +16,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 export const auth = initializeAuth(app, {
-  persistence: inMemoryPersistence,
+  persistence: getReactNativePersistence(AsyncStorage),
 });
 export const db = getFirestore(app);

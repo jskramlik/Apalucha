@@ -52,9 +52,15 @@ export default function AppNavigator() {
       <Tab.Screen name="Leaderboard" component={LeaderboardScreen} options={{ title: t('leaderboard') }} />
       <Tab.Screen name="Cleaning" component={CleaningScreen} options={{ title: t('cleaning') }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: t('profile') }} />
-      {member?.role === 'admin' && (
-        <Tab.Screen name="Admin" component={AdminScreen} options={{ title: t('admin') }} />
-      )}
+      <Tab.Screen
+        name="Admin"
+        component={AdminScreen}
+        options={{
+          title: t('admin'),
+          tabBarButton: member?.role === 'admin' ? undefined : () => null,
+          tabBarItemStyle: member?.role === 'admin' ? undefined : { display: 'none' },
+        }}
+      />
     </Tab.Navigator>
   );
 }

@@ -48,7 +48,7 @@ export default function AdminScreen() {
         keyExtractor={i => i.id}
         renderItem={({ item }) => (
           <View style={styles.row}>
-            <View style={styles.avatarSmall}><Text style={styles.avatarLetter}>{item.name[0]}</Text></View>
+            <View style={styles.avatarSmall}><Text style={styles.avatarLetter}>{(item.name?.[0] ?? '?').toUpperCase()}</Text></View>
             <View style={{ flex: 1 }}>
               <Text style={styles.name}>{item.name}</Text>
               <Text style={styles.role}>{item.role}</Text>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
-import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,38 +18,49 @@ export default function CleaningScreen() {
 
   useEffect(() => {
     if (!holidayId) return;
-    const unsub = onSnapshot(collection(db, 'holidays', holidayId, 'cleaning'), snap => {
+    let membersList: (Member | Child)[] = [];
+    let childrenList: (Member | Child)[] = [];
+
+    const unsubTasks = onSnapshot(collection(db, 'holidays', holidayId, 'cleaning'), snap => {
       setTasks(snap.docs.map(d => ({ id: d.id, ...d.data() } as CleaningTask)).sort((a, b) => a.date.localeCompare(b.date)));
     });
-    const loadMembers = async () => {
-      const [mSnap, cSnap] = await Promise.all([
-        getDocs(collection(db, 'holidays', holidayId, 'members')),
-        getDocs(collection(db, 'holidays', holidayId, 'children')),
-      ]);
-      setMembers([
-        ...mSnap.docs.map(d => ({ id: d.id, ...d.data() } as Member)),
-        ...cSnap.docs.map(d => ({ id: d.id, ...d.data() } as Child)),
-      ]);
-    };
-    loadMembers();
-    return unsub;
+    const unsubMembers = onSnapshot(collection(db, 'holidays', holidayId, 'members'), snap => {
+      membersList = snap.docs.map(d => ({ id: d.id, ...d.data() } as Member));
+      setMembers([...membersList, ...childrenList]);
+    });
+    const unsubChildren = onSnapshot(collection(db, 'holidays', holidayId, 'children'), snap => {
+      childrenList = snap.docs.map(d => ({ id: d.id, ...d.data() } as Child));
+      setMembers([...membersList, ...childrenList]);
+    });
+    return () => { unsubTasks(); unsubMembers(); unsubChildren(); };
   }, [holidayId]);
 
   const handleAdd = async () => {
-    if (!task || !date || !assignedTo) return;
-    await addDoc(collection(db, 'holidays', holidayId!, 'cleaning'), { task, date, assignedTo, done: false });
-    setTask(''); setDate(''); setAssignedTo('');
-    setModalVisible(false);
+    if (!task || !date || !assignedTo) { Alert.alert('Error', 'Task, date, and assignee are required'); return; }
+    try {
+      await addDoc(collection(db, 'holidays', holidayId!, 'cleaning'), { task, date, assignedTo, done: false });
+      setTask(''); setDate(''); setAssignedTo('');
+      setModalVisible(false);
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    }
   };
 
   const toggleDone = async (item: CleaningTask) => {
-    await updateDoc(doc(db, 'holidays', holidayId!, 'cleaning', item.id), { done: !item.done });
+    try {
+      await updateDoc(doc(db, 'holidays', holidayId!, 'cleaning', item.id), { done: !item.done });
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    }
   };
 
   const handleDelete = (id: string) => {
     Alert.alert('Delete', 'Remove this task?', [
       { text: t('cancel'), style: 'cancel' },
-      { text: t('delete'), style: 'destructive', onPress: () => deleteDoc(doc(db, 'holidays', holidayId!, 'cleaning', id)) },
+      { text: t('delete'), style: 'destructive', onPress: async () => {
+        try { await deleteDoc(doc(db, 'holidays', holidayId!, 'cleaning', id)); }
+        catch (e: any) { Alert.alert('Error', e.message); }
+      } },
     ]);
   };
 

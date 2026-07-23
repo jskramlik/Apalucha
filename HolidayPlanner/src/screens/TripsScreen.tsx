@@ -24,16 +24,23 @@ export default function TripsScreen() {
   }, [holidayId]);
 
   const handleAdd = async () => {
-    if (!title || !date) return;
-    await addDoc(collection(db, 'holidays', holidayId!, 'trips'), { title, date, location, notes });
-    setTitle(''); setDate(''); setLocation(''); setNotes('');
-    setModalVisible(false);
+    if (!title || !date) { Alert.alert('Error', 'Name and date are required'); return; }
+    try {
+      await addDoc(collection(db, 'holidays', holidayId!, 'trips'), { title, date, location, notes });
+      setTitle(''); setDate(''); setLocation(''); setNotes('');
+      setModalVisible(false);
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    }
   };
 
   const handleDelete = (id: string) => {
     Alert.alert('Delete', 'Remove this trip?', [
       { text: t('cancel'), style: 'cancel' },
-      { text: t('delete'), style: 'destructive', onPress: () => deleteDoc(doc(db, 'holidays', holidayId!, 'trips', id)) },
+      { text: t('delete'), style: 'destructive', onPress: async () => {
+        try { await deleteDoc(doc(db, 'holidays', holidayId!, 'trips', id)); }
+        catch (e: any) { Alert.alert('Error', e.message); }
+      } },
     ]);
   };
 

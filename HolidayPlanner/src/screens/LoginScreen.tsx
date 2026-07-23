@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import * as WebBrowser from 'expo-web-browser';
-import * as AuthSession from 'expo-auth-session';
+import * as Google from 'expo-auth-session/providers/google';
 import { useTranslation } from 'react-i18next';
 import { auth } from '../firebase/config';
 
 WebBrowser.maybeCompleteAuthSession();
 
-// Add your Google OAuth web client ID from Firebase Console:
+// Google OAuth web client ID from Firebase Console:
 // Authentication → Sign-in method → Google → Web SDK configuration → Web client ID
 const GOOGLE_CLIENT_ID = '342767702765-drjdtooc7ljs7thfsa8i4s9646edpio3.apps.googleusercontent.com';
 
@@ -21,23 +21,24 @@ export default function LoginScreen() {
   const [isRegister, setIsRegister] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const [request, response, promptAsync] = AuthSession.useAuthRequest(
-    {
-      clientId: GOOGLE_CLIENT_ID,
-      scopes: ['openid', 'profile', 'email'],
-      redirectUri: AuthSession.makeRedirectUri(),
-    },
-    { authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth' }
-  );
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    clientId: GOOGLE_CLIENT_ID,
+  });
 
   React.useEffect(() => {
     if (response?.type === 'success') {
-      const { id_token } = response.params;
+      const idToken = response.params?.id_token ?? response.authentication?.idToken;
+      if (!idToken) {
+        setErrorMsg('Google Sign-In failed: no token received');
+        return;
+      }
       setGoogleLoading(true);
-      const credential = GoogleAuthProvider.credential(id_token);
+      const credential = GoogleAuthProvider.credential(idToken);
       signInWithCredential(auth, credential)
-        .catch((e) => Alert.alert('Google Sign-In Error', e.message))
+        .catch((e) => setErrorMsg(e.message))
         .finally(() => setGoogleLoading(false));
+    } else if (response?.type === 'error') {
+      setErrorMsg('Google Sign-In failed');
     }
   }, [response]);
 

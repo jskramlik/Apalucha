@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView, Switch } from 'react-native';
-import { doc, updateDoc, setDoc, deleteDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, updateDoc, setDoc, deleteDoc, collection, onSnapshot, query, where } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n';
@@ -11,36 +11,46 @@ import { Child } from '../types';
 export default function ProfileScreen() {
   const { t } = useTranslation();
   const { user, member, holidayId } = useAuth();
-  const [displayName, setDisplayName] = useState(member?.name ?? '');
+  const [displayName, setDisplayName] = useState('');
   const [children, setChildren] = useState<Child[]>([]);
   const [newChildName, setNewChildName] = useState('');
   const [isCzech, setIsCzech] = useState(i18n.language === 'cs');
 
   useEffect(() => {
+    if (member?.name) setDisplayName(member.name);
+  }, [member?.name]);
+
+  useEffect(() => {
     if (!holidayId || !user) return;
-    getDocs(collection(db, 'holidays', holidayId, 'children')).then(snap => {
-      setChildren(snap.docs.map(d => ({ id: d.id, ...d.data() } as Child)).filter(c => c.parentUserId === user.uid));
+    const q = query(collection(db, 'holidays', holidayId, 'children'), where('parentUserId', '==', user.uid));
+    return onSnapshot(q, snap => {
+      setChildren(snap.docs.map(d => ({ id: d.id, ...d.data() } as Child)));
     });
   }, [holidayId, user]);
 
   const handleSaveName = async () => {
     if (!user || !holidayId) return;
-    await updateDoc(doc(db, 'holidays', holidayId, 'members', user.uid), { name: displayName });
-    Alert.alert('Saved!');
+    try {
+      await updateDoc(doc(db, 'holidays', holidayId, 'members', user.uid), { name: displayName });
+      Alert.alert('Saved!');
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    }
   };
-
 
   const handleAddChild = async () => {
     if (!newChildName.trim() || !holidayId || !user) return;
-    await setDoc(doc(collection(db, 'holidays', holidayId, 'children')), {
-      name: newChildName.trim(),
-      photoUrl: '',
-      parentUserId: user.uid,
-      totalPoints: 0,
-    });
-    setNewChildName('');
-    const snap = await getDocs(collection(db, 'holidays', holidayId, 'children'));
-    setChildren(snap.docs.map(d => ({ id: d.id, ...d.data() } as Child)).filter(c => c.parentUserId === user.uid));
+    try {
+      await setDoc(doc(collection(db, 'holidays', holidayId, 'children')), {
+        name: newChildName.trim(),
+        photoUrl: '',
+        parentUserId: user.uid,
+        totalPoints: 0,
+      });
+      setNewChildName('');
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    }
   };
 
   const handleRemoveChild = (child: Child) => {
@@ -48,8 +58,11 @@ export default function ProfileScreen() {
       { text: t('cancel'), style: 'cancel' },
       {
         text: t('delete'), style: 'destructive', onPress: async () => {
-          await deleteDoc(doc(db, 'holidays', holidayId!, 'children', child.id));
-          setChildren(prev => prev.filter(c => c.id !== child.id));
+          try {
+            await deleteDoc(doc(db, 'holidays', holidayId!, 'children', child.id));
+          } catch (e: any) {
+            Alert.alert('Error', e.message);
+          }
         }
       },
     ]);

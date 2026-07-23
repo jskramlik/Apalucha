@@ -25,16 +25,23 @@ export default function ActivitiesScreen() {
   }, [holidayId]);
 
   const handleAdd = async () => {
-    if (!title || !date) return;
-    await addDoc(collection(db, 'holidays', holidayId!, 'activities'), { title, date, time, description });
-    setTitle(''); setDate(''); setTime(''); setDescription('');
-    setModalVisible(false);
+    if (!title || !date) { Alert.alert('Error', 'Name and date are required'); return; }
+    try {
+      await addDoc(collection(db, 'holidays', holidayId!, 'activities'), { title, date, time, description });
+      setTitle(''); setDate(''); setTime(''); setDescription('');
+      setModalVisible(false);
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    }
   };
 
   const handleDelete = (id: string) => {
     Alert.alert('Delete', 'Remove this activity?', [
       { text: t('cancel'), style: 'cancel' },
-      { text: t('delete'), style: 'destructive', onPress: () => deleteDoc(doc(db, 'holidays', holidayId!, 'activities', id)) },
+      { text: t('delete'), style: 'destructive', onPress: async () => {
+        try { await deleteDoc(doc(db, 'holidays', holidayId!, 'activities', id)); }
+        catch (e: any) { Alert.alert('Error', e.message); }
+      } },
     ]);
   };
 
