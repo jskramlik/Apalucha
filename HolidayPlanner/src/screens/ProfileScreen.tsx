@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Switch, Modal } from 'react-native';
-import { doc, updateDoc, setDoc, deleteDoc, collection, onSnapshot, query, where } from 'firebase/firestore';
+import { doc, updateDoc, setDoc, deleteDoc, collection, onSnapshot, query, where, getDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
@@ -22,10 +22,18 @@ export default function ProfileScreen() {
   const [editingChild, setEditingChild] = useState<Child | null>(null);
   const [editName, setEditName] = useState('');
   const [editAvatar, setEditAvatar] = useState(AVATAR_OPTIONS[0]);
+  const [inviteCode, setInviteCode] = useState('');
 
   useEffect(() => {
     if (member?.name) setDisplayName(member.name);
   }, [member?.name]);
+
+  useEffect(() => {
+    if (!holidayId) return;
+    getDoc(doc(db, 'holidays', holidayId)).then(snap => {
+      if (snap.exists()) setInviteCode(snap.data().inviteCode);
+    });
+  }, [holidayId]);
 
   useEffect(() => {
     if (!holidayId || !user) return;
@@ -111,6 +119,14 @@ export default function ProfileScreen() {
         <Text style={styles.switchHolidayText}>🔄 {t('switchHoliday')}</Text>
       </TouchableOpacity>
 
+      {!!inviteCode && (
+        <View style={styles.codeCard}>
+          <Text style={styles.codeLabel}>{t('inviteCode')}</Text>
+          <Text style={styles.code}>{inviteCode}</Text>
+          <Text style={styles.codeHint}>Share this code with other dads to join</Text>
+        </View>
+      )}
+
       <Text style={styles.section}>{t('language')}</Text>
       <View style={styles.langRow}>
         <Text style={styles.langLabel}>EN</Text>
@@ -177,6 +193,10 @@ const styles = StyleSheet.create({
   logoutText: { color: '#c62828', fontWeight: '600', fontSize: 15 },
   switchHolidayButton: { marginTop: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: '#2e7d32', borderRadius: 8, padding: 14, alignItems: 'center' },
   switchHolidayText: { color: '#2e7d32', fontWeight: '600', fontSize: 15 },
+  codeCard: { marginTop: 16, backgroundColor: '#2e7d32', borderRadius: 16, padding: 20, alignItems: 'center' },
+  codeLabel: { color: '#a5d6a7', fontSize: 13, marginBottom: 6 },
+  code: { color: '#fff', fontSize: 28, fontWeight: 'bold', letterSpacing: 6 },
+  codeHint: { color: '#a5d6a7', fontSize: 12, marginTop: 8, textAlign: 'center' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   modal: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24 },
   modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 16, color: '#333' },

@@ -8,9 +8,6 @@ import { useAuth } from '../contexts/AuthContext';
 import DatePickerField from '../components/DatePickerField';
 import { showAlert } from '../utils/alert';
 
-// Jan's email is the admin
-const ADMIN_EMAIL = 'jan.skramlik@accenture.com';
-
 function generateCode() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
@@ -35,7 +32,6 @@ export default function HolidaySetupScreen() {
     setLoading(true);
     try {
       const user = auth.currentUser!;
-      const isAdmin = user.email === ADMIN_EMAIL;
       const holidayRef = doc(collection(db, 'holidays'));
       const code = generateCode();
       await setDoc(holidayRef, {
@@ -48,13 +44,13 @@ export default function HolidaySetupScreen() {
       });
       await setDoc(doc(db, 'holidays', holidayRef.id, 'members', user.uid), {
         name: displayName,
-        role: isAdmin ? 'admin' : 'dad',
+        role: 'admin',
         photoUrl: '',
         totalPoints: 0,
       });
       await setDoc(doc(db, 'userHolidays', user.uid, 'holidays', holidayRef.id), {
         holidayName: name,
-        role: isAdmin ? 'admin' : 'dad',
+        role: 'admin',
         joinedAt: new Date().toISOString(),
       });
       showAlert('Apalucha Created!', `Invite code: ${code}`);
@@ -75,7 +71,6 @@ export default function HolidaySetupScreen() {
     setLoading(true);
     try {
       const user = auth.currentUser!;
-      const isAdmin = user.email === ADMIN_EMAIL;
       const q = query(collection(db, 'holidays'), where('inviteCode', '==', inviteCode.toUpperCase()));
       const snap = await getDocs(q);
       if (snap.empty) {
@@ -86,13 +81,13 @@ export default function HolidaySetupScreen() {
       const holidayData = holidayDoc.data();
       await setDoc(doc(db, 'holidays', holidayDoc.id, 'members', user.uid), {
         name: displayName,
-        role: isAdmin ? 'admin' : 'dad',
+        role: 'dad',
         photoUrl: '',
         totalPoints: 0,
       });
       await setDoc(doc(db, 'userHolidays', user.uid, 'holidays', holidayDoc.id), {
         holidayName: holidayData.name,
-        role: isAdmin ? 'admin' : 'dad',
+        role: 'dad',
         joinedAt: new Date().toISOString(),
       });
       setHolidayId(holidayDoc.id);
