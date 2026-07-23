@@ -1,34 +1,51 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
-import { collection, onSnapshot, addDoc, deleteDoc, doc } from 'firebase/firestore';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, Alert, Linking, ScrollView } from 'react-native';
+import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
-import { Trip } from '../types';
+import { Trip, Member, Child } from '../types';
 import DatePickerField from '../components/DatePickerField';
+
+type Participant = (Member | Child) & { id: string };
 
 export default function TripsScreen() {
   const { t } = useTranslation();
   const { holidayId } = useAuth();
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [participants, setParticipants] = useState<Participant[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [rsvpTrip, setRsvpTrip] = useState<Trip | null>(null);
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
   const [location, setLocation] = useState('');
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
     if (!holidayId) return;
-    return onSnapshot(collection(db, 'holidays', holidayId, 'trips'), snap => {
+    let membersList: Participant[] = [];
+    let childrenList: Participant[] = [];
+
+    const unsubTrips = onSnapshot(collection(db, 'holidays', holidayId, 'trips'), snap => {
       setTrips(snap.docs.map(d => ({ id: d.id, ...d.data() } as Trip)).sort((a, b) => a.date.localeCompare(b.date)));
     });
+    const unsubMembers = onSnapshot(collection(db, 'holidays', holidayId, 'members'), snap => {
+      membersList = snap.docs.map(d => ({ id: d.id, ...d.data() } as Participant));
+      setParticipants([...membersList, ...childrenList]);
+    });
+    const unsubChildren = onSnapshot(collection(db, 'holidays', holidayId, 'children'), snap => {
+      childrenList = snap.docs.map(d => ({ id: d.id, ...d.data() } as Participant));
+      setParticipants([...membersList, ...childrenList]);
+    });
+    return () => { unsubTrips(); unsubMembers(); unsubChildren(); };
   }, [holidayId]);
 
   const handleAdd = async () => {
     if (!title || !date) { Alert.alert('Error', 'Name and date are required'); return; }
     try {
-      await addDoc(collection(db, 'holidays', holidayId!, 'trips'), { title, date, location, notes });
-      setTitle(''); setDate(''); setLocation(''); setNotes('');
+      await addDoc(collection(db, 'holidays', holidayId!, 'trips'), { title, date, time, location, notes, rsvp: {} });
+      setTitle(''); setDate(''); setTime(''); setLocation(''); setNotes('');
       setModalVisible(false);
     } catch (e: any) {
       Alert.alert('Error', e.message);
@@ -45,17 +62,40 @@ export default function TripsScreen() {
     ]);
   };
 
+  const openMap = (location: string) => {
+    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`);
+  };
+
+  const toggleRsvp = async (trip: Trip, participantId: string) => {
+    const current = trip.rsvp?.[participantId] ?? false;
+    const updated = { ...trip.rsvp, [participantId]: !current };
+    try {
+      await updateDoc(doc(db, 'holidays', holidayId!, 'trips', trip.id), { rsvp: updated });
+      setRsvpTrip({ ...trip, rsvp: updated });
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    }
+  };
+
+  const goingCount = (trip: Trip) => Object.values(trip.rsvp ?? {}).filter(Boolean).length;
+
   return (
     <View style={styles.container}>
       <FlatList
         data={trips}
         keyExtractor={i => i.id}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.card} onLongPress={() => handleDelete(item.id)}>
+          <TouchableOpacity style={styles.card} onPress={() => setRsvpTrip(item)} onLongPress={() => handleDelete(item.id)}>
             <View style={styles.dateTag}><Text style={styles.dateText}>{item.date}</Text></View>
             <Text style={styles.cardTitle}>🗺️ {item.title}</Text>
-            {item.location && <Text style={styles.cardSub}>📍 {item.location}</Text>}
+            {item.time && <Text style={styles.cardSub}>⏰ {item.time}</Text>}
+            {item.location && (
+              <TouchableOpacity onPress={() => openMap(item.location!)}>
+                <Text style={styles.mapLink}>📍 {item.location}</Text>
+              </TouchableOpacity>
+            )}
             {item.notes && <Text style={styles.cardSub}>{item.notes}</Text>}
+            <Text style={styles.rsvpSummary}>👍 {goingCount(item)} {t('going')}</Text>
           </TouchableOpacity>
         )}
         contentContainerStyle={{ padding: 12 }}
@@ -71,11 +111,34 @@ export default function TripsScreen() {
             <Text style={styles.modalTitle}>{t('addTrip')}</Text>
             <TextInput style={styles.input} placeholder={t('name')} value={title} onChangeText={setTitle} />
             <DatePickerField placeholder={t('date')} value={date} onChange={setDate} />
+            <TextInput style={styles.input} placeholder={t('time')} value={time} onChangeText={setTime} />
             <TextInput style={styles.input} placeholder={t('location')} value={location} onChangeText={setLocation} />
             <TextInput style={styles.input} placeholder={t('notes')} value={notes} onChangeText={setNotes} multiline />
             <View style={styles.row}>
               <TouchableOpacity style={styles.btnCancel} onPress={() => setModalVisible(false)}><Text>{t('cancel')}</Text></TouchableOpacity>
               <TouchableOpacity style={styles.btnSave} onPress={handleAdd}><Text style={{ color: '#fff' }}>{t('save')}</Text></TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={!!rsvpTrip} animationType="slide" transparent onRequestClose={() => setRsvpTrip(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>{t('rsvp')}: {rsvpTrip?.title}</Text>
+            <ScrollView style={{ maxHeight: 300 }}>
+              {participants.map(p => {
+                const going = rsvpTrip?.rsvp?.[p.id] ?? false;
+                return (
+                  <TouchableOpacity key={p.id} style={styles.rsvpRow} onPress={() => rsvpTrip && toggleRsvp(rsvpTrip, p.id)}>
+                    <Text style={styles.rsvpName}>{p.name}</Text>
+                    <Text style={going ? styles.rsvpGoing : styles.rsvpNotGoing}>{going ? `✓ ${t('going')}` : t('notGoing')}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <View style={styles.row}>
+              <TouchableOpacity style={styles.btnSave} onPress={() => setRsvpTrip(null)}><Text style={{ color: '#fff' }}>{t('save')}</Text></TouchableOpacity>
             </View>
           </View>
         </View>
@@ -91,6 +154,8 @@ const styles = StyleSheet.create({
   dateText: { color: '#2e7d32', fontSize: 12, fontWeight: '600' },
   cardTitle: { fontSize: 16, fontWeight: '700', color: '#333' },
   cardSub: { fontSize: 13, color: '#666', marginTop: 2 },
+  mapLink: { fontSize: 13, color: '#1a73e8', marginTop: 2, textDecorationLine: 'underline' },
+  rsvpSummary: { fontSize: 12, color: '#2e7d32', marginTop: 6, fontWeight: '600' },
   empty: { textAlign: 'center', color: '#aaa', marginTop: 40, fontStyle: 'italic' },
   fab: { position: 'absolute', bottom: 24, right: 24, backgroundColor: '#2e7d32', width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 4 },
   fabText: { color: '#fff', fontSize: 28, lineHeight: 32 },
@@ -101,4 +166,8 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 8 },
   btnCancel: { padding: 12 },
   btnSave: { backgroundColor: '#2e7d32', borderRadius: 8, paddingHorizontal: 20, paddingVertical: 12 },
+  rsvpRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  rsvpName: { fontSize: 15, color: '#333' },
+  rsvpGoing: { fontSize: 13, color: '#2e7d32', fontWeight: '700' },
+  rsvpNotGoing: { fontSize: 13, color: '#aaa' },
 });

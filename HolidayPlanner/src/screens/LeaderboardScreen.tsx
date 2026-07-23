@@ -43,6 +43,8 @@ export default function LeaderboardScreen() {
             <Text style={styles.rank}>{medals[index] ?? `#${index + 1}`}</Text>
             {item.photoUrl ? (
               <Image source={{ uri: item.photoUrl }} style={styles.avatar} />
+            ) : item.avatar ? (
+              <View style={styles.avatarPlaceholder}><Text style={styles.avatarEmoji}>{item.avatar}</Text></View>
             ) : (
               <View style={styles.avatarPlaceholder}><Text style={styles.avatarLetter}>{(item.name?.[0] ?? '?').toUpperCase()}</Text></View>
             )}
@@ -65,6 +67,7 @@ const styles = StyleSheet.create({
   avatar: { width: 40, height: 40, borderRadius: 20, marginRight: 12 },
   avatarPlaceholder: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#2e7d32', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   avatarLetter: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  avatarEmoji: { fontSize: 22 },
   name: { flex: 1, fontSize: 16, color: '#333', fontWeight: '600' },
   points: { fontSize: 16, color: '#2e7d32', fontWeight: '700' },
 });

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, onSnapshot, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
 import { Member } from '../types';
 
@@ -10,6 +10,9 @@ interface AuthContextType {
   holidayId: string | null;
   setHolidayId: (id: string | null) => void;
   loading: boolean;
+  // Number of apaluchas the user belongs to, checked when holidayId is null.
+  // null while still checking; used to decide between the setup screen (0) and the switcher (>1).
+  userHolidayCount: number | null;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -18,6 +21,7 @@ const AuthContext = createContext<AuthContextType>({
   holidayId: null,
   setHolidayId: () => {},
   loading: true,
+  userHolidayCount: null,
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -27,6 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [member, setMember] = useState<Member | null>(null);
   const [holidayId, setHolidayId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userHolidayCount, setUserHolidayCount] = useState<number | null>(null);
   const backfilledRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -34,10 +39,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(firebaseUser);
       if (!firebaseUser) {
         setMember(null);
+        setUserHolidayCount(null);
         setLoading(false);
       }
     });
   }, []);
+
+  useEffect(() => {
+    if (!user || holidayId) return;
+    let cancelled = false;
+    getDocs(collection(db, 'userHolidays', user.uid, 'holidays')).then((snap) => {
+      if (cancelled) return;
+      setUserHolidayCount(snap.size);
+      if (snap.size === 1) setHolidayId(snap.docs[0].id);
+    });
+    return () => { cancelled = true; };
+  }, [user, holidayId]);
 
   useEffect(() => {
     if (!user || !holidayId) {
@@ -78,7 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user, holidayId]);
 
   return (
-    <AuthContext.Provider value={{ user, member, holidayId, setHolidayId, loading }}>
+    <AuthContext.Provider value={{ user, member, holidayId, setHolidayId, loading, userHolidayCount }}>
       {children}
     </AuthContext.Provider>
   );

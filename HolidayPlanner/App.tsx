@@ -15,15 +15,23 @@ const Stack = createNativeStackNavigator();
 
 function RootNavigator() {
   const { t } = useTranslation();
-  const { user, holidayId, loading } = useAuth();
+  const { user, holidayId, loading, userHolidayCount } = useAuth();
   if (loading) return null;
+  // A single apalucha resolves holidayId automatically in AuthContext; while
+  // that check is in flight (userHolidayCount === null) hold off rendering
+  // to avoid flashing the setup screen before it's known to be unnecessary.
+  if (user && !holidayId && userHolidayCount === null) return null;
 
   return (
     <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: '#2e7d32' }, headerTintColor: '#fff' }}>
       {!user ? (
         <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
       ) : !holidayId ? (
-        <Stack.Screen name="HolidaySetup" component={HolidaySetupScreen} options={{ headerShown: false }} />
+        userHolidayCount === 0 ? (
+          <Stack.Screen name="HolidaySetup" component={HolidaySetupScreen} options={{ headerShown: false }} />
+        ) : (
+          <Stack.Screen name="MyHolidays" component={MyHolidaysScreen} options={{ headerShown: false }} />
+        )
       ) : (
         <>
           <Stack.Screen name="Main" component={AppNavigator} options={{ headerShown: false }} />

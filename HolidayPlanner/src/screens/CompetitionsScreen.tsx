@@ -4,7 +4,11 @@ import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, getDocs } fr
 import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
-import { Competition, Member, Child } from '../types';
+import { Competition, Member, Child, Guest } from '../types';
+
+function generateGuestId() {
+  return `guest_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
 
 export default function CompetitionsScreen() {
   const { t } = useTranslation();
@@ -17,6 +21,8 @@ export default function CompetitionsScreen() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [scores, setScores] = useState<Record<string, string>>({});
+  const [guests, setGuests] = useState<Guest[]>([]);
+  const [newGuestName, setNewGuestName] = useState('');
 
   useEffect(() => {
     if (!holidayId) return;
@@ -52,8 +58,27 @@ export default function CompetitionsScreen() {
     setSelectedComp(comp);
     const init: Record<string, string> = {};
     members.forEach(m => { init[m.id] = String(comp.scores?.[m.id] ?? 0); });
+    (comp.guests ?? []).forEach(g => { init[g.id] = String(comp.scores?.[g.id] ?? 0); });
     setScores(init);
+    setGuests(comp.guests ?? []);
+    setNewGuestName('');
     setScoreModalVisible(true);
+  };
+
+  const handleAddGuest = () => {
+    if (!newGuestName.trim()) return;
+    const guest: Guest = { id: generateGuestId(), name: newGuestName.trim() };
+    setGuests(prev => [...prev, guest]);
+    setScores(prev => ({ ...prev, [guest.id]: '0' }));
+    setNewGuestName('');
+  };
+
+  const handleRemoveGuest = (id: string) => {
+    setGuests(prev => prev.filter(g => g.id !== id));
+    setScores(prev => {
+      const { [id]: _removed, ...rest } = prev;
+      return rest;
+    });
   };
 
   const handleSaveScores = async () => {
@@ -61,7 +86,7 @@ export default function CompetitionsScreen() {
     const numericScores: Record<string, number> = {};
     Object.entries(scores).forEach(([k, v]) => { numericScores[k] = parseInt(v) || 0; });
     try {
-      await updateDoc(doc(db, 'holidays', holidayId!, 'competitions', selectedComp.id), { scores: numericScores });
+      await updateDoc(doc(db, 'holidays', holidayId!, 'competitions', selectedComp.id), { scores: numericScores, guests });
 
       // Re-read all competitions fresh so totals reflect the latest data
       const compsSnap = await getDocs(collection(db, 'holidays', holidayId!, 'competitions'));
@@ -137,7 +162,32 @@ export default function CompetitionsScreen() {
                   />
                 </View>
               ))}
+              {guests.map(g => (
+                <View key={g.id} style={styles.scoreRow}>
+                  <Text style={styles.scoreName}>{g.name} <Text style={styles.guestTag}>(guest)</Text></Text>
+                  <TextInput
+                    style={styles.scoreInput}
+                    keyboardType="numeric"
+                    value={scores[g.id] ?? '0'}
+                    onChangeText={v => setScores(prev => ({ ...prev, [g.id]: v }))}
+                  />
+                  <TouchableOpacity onPress={() => handleRemoveGuest(g.id)} style={styles.removeGuestBtn}>
+                    <Text style={styles.removeGuestText}>×</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
             </ScrollView>
+            <View style={styles.addGuestRow}>
+              <TextInput
+                style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                placeholder={t('guestName')}
+                value={newGuestName}
+                onChangeText={setNewGuestName}
+              />
+              <TouchableOpacity style={styles.addGuestBtn} onPress={handleAddGuest}>
+                <Text style={{ color: '#fff', fontWeight: '600' }}>{t('addGuest')}</Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.row}>
               <TouchableOpacity style={styles.btnCancel} onPress={() => setScoreModalVisible(false)}><Text>{t('cancel')}</Text></TouchableOpacity>
               <TouchableOpacity style={styles.btnSave} onPress={handleSaveScores}><Text style={{ color: '#fff' }}>{t('save')}</Text></TouchableOpacity>
@@ -168,4 +218,9 @@ const styles = StyleSheet.create({
   scoreRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   scoreName: { fontSize: 15, color: '#333', flex: 1 },
   scoreInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 8, width: 80, textAlign: 'center', fontSize: 15 },
+  guestTag: { fontSize: 12, color: '#aaa', fontStyle: 'italic' },
+  removeGuestBtn: { marginLeft: 8, padding: 4 },
+  removeGuestText: { fontSize: 18, color: '#c62828', fontWeight: '700' },
+  addGuestRow: { flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 8 },
+  addGuestBtn: { backgroundColor: '#2e7d32', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 12 },
 });

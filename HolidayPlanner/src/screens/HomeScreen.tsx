@@ -4,13 +4,13 @@ import { collection, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
-import { Activity, Meal, CleaningTask, Holiday } from '../types';
+import { Trip, Meal, CleaningTask, Holiday } from '../types';
 
 export default function HomeScreen() {
   const { t } = useTranslation();
   const { holidayId } = useAuth();
   const [holiday, setHoliday] = useState<Holiday | null>(null);
-  const [activities, setActivities] = useState<Activity[]>([]);
+  const [trips, setTrips] = useState<Trip[]>([]);
   const [meal, setMeal] = useState<Meal | null>(null);
   const [cleaningTasks, setCleaningTasks] = useState<CleaningTask[]>([]);
   const today = new Date().toISOString().split('T')[0];
@@ -21,8 +21,8 @@ export default function HomeScreen() {
       if (snap.exists()) setHoliday({ id: snap.id, ...snap.data() } as Holiday);
     });
 
-    const unsub1 = onSnapshot(collection(db, 'holidays', holidayId, 'activities'), snap => {
-      setActivities(snap.docs.map(d => ({ id: d.id, ...d.data() } as Activity)).filter(a => a.date === today));
+    const unsub1 = onSnapshot(collection(db, 'holidays', holidayId, 'trips'), snap => {
+      setTrips(snap.docs.map(d => ({ id: d.id, ...d.data() } as Trip)).filter(a => a.date === today));
     });
 
     const unsub2 = onSnapshot(doc(db, 'holidays', holidayId, 'meals', today), snap => {
@@ -41,9 +41,9 @@ export default function HomeScreen() {
       <Text style={styles.title}>{holiday?.name ?? '🏕️ Apalucha Planner'}</Text>
       <Text style={styles.date}>{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</Text>
 
-      <Section title={t('activities')}>
-        {activities.length === 0 ? <Empty text={t('noActivities')} /> :
-          activities.map(a => <Item key={a.id} main={a.title} sub={a.time} />)}
+      <Section title={t('trips')}>
+        {trips.length === 0 ? <Empty text={t('noTrips')} /> :
+          trips.map(a => <Item key={a.id} main={a.title} sub={a.time} />)}
       </Section>
 
       <Section title={t('mealPlan')}>

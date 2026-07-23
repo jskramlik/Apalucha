@@ -3,7 +3,6 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import HomeScreen from '../screens/HomeScreen';
-import ActivitiesScreen from '../screens/ActivitiesScreen';
 import MealPlanScreen from '../screens/MealPlanScreen';
 import TripsScreen from '../screens/TripsScreen';
 import CompetitionsScreen from '../screens/CompetitionsScreen';
@@ -25,7 +24,6 @@ export default function AppNavigator() {
         tabBarIcon: ({ color, size }) => {
           const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
             Home: 'home',
-            Activities: 'list',
             Meals: 'restaurant',
             Trips: 'map',
             Competitions: 'trophy',
@@ -45,7 +43,6 @@ export default function AppNavigator() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: t('home') }} />
-      <Tab.Screen name="Activities" component={ActivitiesScreen} options={{ title: t('activities') }} />
       <Tab.Screen name="Meals" component={MealPlanScreen} options={{ title: t('mealPlan') }} />
       <Tab.Screen name="Trips" component={TripsScreen} options={{ title: t('trips') }} />
       <Tab.Screen name="Competitions" component={CompetitionsScreen} options={{ title: t('competitions') }} />

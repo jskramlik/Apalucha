@@ -5,6 +5,7 @@ export interface Member {
   name: string;
   role: UserRole;
   photoUrl?: string;
+  avatar?: string;
   totalPoints: number;
 }
 
@@ -12,6 +13,7 @@ export interface Child {
   id: string;
   name: string;
   photoUrl?: string;
+  avatar?: string;
   parentUserId: string;
   totalPoints: number;
 }
@@ -33,30 +35,30 @@ export interface UserHoliday {
   joinedAt: string;
 }
 
-export interface Activity {
-  id: string;
-  title: string;
-  date: string;
-  time?: string;
-  description?: string;
-  assignedTo?: string;
-}
-
 export interface Meal {
   date: string;
   breakfast?: string;
+  breakfastCook?: string;
   lunch?: string;
+  lunchCook?: string;
   dinner?: string;
-  cook?: string;
+  dinnerCook?: string;
 }
 
 export interface Trip {
   id: string;
   title: string;
   date: string;
+  time?: string;
   location?: string;
   notes?: string;
   imageUrl?: string;
+  rsvp?: Record<string, boolean>;
+}
+
+export interface Guest {
+  id: string;
+  name: string;
 }
 
 export interface Competition {
@@ -64,6 +66,7 @@ export interface Competition {
   name: string;
   description?: string;
   scores: Record<string, number>;
+  guests?: Guest[];
 }
 
 export interface CleaningTask {

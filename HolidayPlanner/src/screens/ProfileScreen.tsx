@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView, Switch } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView, Switch, Modal } from 'react-native';
 import { doc, updateDoc, setDoc, deleteDoc, collection, onSnapshot, query, where } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
@@ -8,6 +8,7 @@ import i18n from '../i18n';
 import { auth, db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
 import { Child } from '../types';
+import AvatarPicker, { AVATAR_OPTIONS } from '../components/AvatarPicker';
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
@@ -17,6 +18,9 @@ export default function ProfileScreen() {
   const [children, setChildren] = useState<Child[]>([]);
   const [newChildName, setNewChildName] = useState('');
   const [isCzech, setIsCzech] = useState(i18n.language === 'cs');
+  const [editingChild, setEditingChild] = useState<Child | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editAvatar, setEditAvatar] = useState(AVATAR_OPTIONS[0]);
 
   useEffect(() => {
     if (member?.name) setDisplayName(member.name);
@@ -46,10 +50,30 @@ export default function ProfileScreen() {
       await setDoc(doc(collection(db, 'holidays', holidayId, 'children')), {
         name: newChildName.trim(),
         photoUrl: '',
+        avatar: AVATAR_OPTIONS[0],
         parentUserId: user.uid,
         totalPoints: 0,
       });
       setNewChildName('');
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    }
+  };
+
+  const openEditChild = (child: Child) => {
+    setEditingChild(child);
+    setEditName(child.name);
+    setEditAvatar(child.avatar ?? AVATAR_OPTIONS[0]);
+  };
+
+  const handleSaveChildEdit = async () => {
+    if (!editingChild || !holidayId || !editName.trim()) return;
+    try {
+      await updateDoc(doc(db, 'holidays', holidayId, 'children', editingChild.id), {
+        name: editName.trim(),
+        avatar: editAvatar,
+      });
+      setEditingChild(null);
     } catch (e: any) {
       Alert.alert('Error', e.message);
     }
@@ -100,10 +124,10 @@ export default function ProfileScreen() {
 
       <Text style={styles.section}>{t('myKids')}</Text>
       {children.map(c => (
-        <View key={c.id} style={styles.childRow}>
-          <Text style={styles.childName}>👦 {c.name}</Text>
+        <TouchableOpacity key={c.id} style={styles.childRow} onPress={() => openEditChild(c)}>
+          <Text style={styles.childName}>{c.avatar ?? '👦'} {c.name}</Text>
           <TouchableOpacity onPress={() => handleRemoveChild(c)}><Text style={styles.removeText}>Remove</Text></TouchableOpacity>
-        </View>
+        </TouchableOpacity>
       ))}
       <View style={styles.addChildRow}>
         <TextInput style={[styles.input, { flex: 1, marginBottom: 0 }]} placeholder={t('addKid')} value={newChildName} onChangeText={setNewChildName} />
@@ -113,6 +137,21 @@ export default function ProfileScreen() {
       <TouchableOpacity style={styles.logoutButton} onPress={() => signOut(auth)}>
         <Text style={styles.logoutText}>{t('logout')}</Text>
       </TouchableOpacity>
+
+      <Modal visible={!!editingChild} animationType="slide" transparent onRequestClose={() => setEditingChild(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>{t('editKid')}</Text>
+            <TextInput style={styles.input} placeholder={t('name')} value={editName} onChangeText={setEditName} />
+            <Text style={styles.section}>{t('chooseAvatar')}</Text>
+            <AvatarPicker value={editAvatar} onChange={setEditAvatar} />
+            <View style={styles.modalRow}>
+              <TouchableOpacity style={styles.btnCancel} onPress={() => setEditingChild(null)}><Text>{t('cancel')}</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.button} onPress={handleSaveChildEdit}><Text style={styles.buttonText}>{t('save')}</Text></TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -139,4 +178,9 @@ const styles = StyleSheet.create({
   logoutText: { color: '#c62828', fontWeight: '600', fontSize: 15 },
   switchHolidayButton: { marginTop: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: '#2e7d32', borderRadius: 8, padding: 14, alignItems: 'center' },
   switchHolidayText: { color: '#2e7d32', fontWeight: '600', fontSize: 15 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  modal: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24 },
+  modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 16, color: '#333' },
+  modalRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 8 },
+  btnCancel: { padding: 12 },
 });
