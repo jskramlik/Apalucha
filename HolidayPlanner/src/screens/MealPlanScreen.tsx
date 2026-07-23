@@ -1,0 +1,97 @@
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput } from 'react-native';
+import { doc, setDoc, onSnapshot, collection } from 'firebase/firestore';
+import { useTranslation } from 'react-i18next';
+import { db } from '../firebase/config';
+import { useAuth } from '../contexts/AuthContext';
+import { Meal } from '../types';
+
+export default function MealPlanScreen() {
+  const { t } = useTranslation();
+  const { holidayId } = useAuth();
+  const [meals, setMeals] = useState<Meal[]>([]);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [breakfast, setBreakfast] = useState('');
+  const [lunch, setLunch] = useState('');
+  const [dinner, setDinner] = useState('');
+  const [cook, setCook] = useState('');
+
+  useEffect(() => {
+    if (!holidayId) return;
+    return onSnapshot(collection(db, 'holidays', holidayId, 'meals'), snap => {
+      setMeals(snap.docs.map(d => ({ date: d.id, ...d.data() } as Meal)).sort((a, b) => a.date.localeCompare(b.date)));
+    });
+  }, [holidayId]);
+
+  const openEdit = (meal?: Meal) => {
+    setSelectedDate(meal?.date ?? '');
+    setBreakfast(meal?.breakfast ?? '');
+    setLunch(meal?.lunch ?? '');
+    setDinner(meal?.dinner ?? '');
+    setCook(meal?.cook ?? '');
+    setModalVisible(true);
+  };
+
+  const handleSave = async () => {
+    if (!selectedDate) return;
+    await setDoc(doc(db, 'holidays', holidayId!, 'meals', selectedDate), { breakfast, lunch, dinner, cook });
+    setModalVisible(false);
+  };
+
+  return (
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={{ padding: 12 }}>
+        {meals.length === 0 && <Text style={styles.empty}>{t('noMeals')}</Text>}
+        {meals.map(m => (
+          <TouchableOpacity key={m.date} style={styles.card} onPress={() => openEdit(m)}>
+            <View style={styles.dateTag}><Text style={styles.dateText}>{m.date}</Text></View>
+            {m.breakfast && <Text style={styles.mealRow}>🌅 {m.breakfast}</Text>}
+            {m.lunch && <Text style={styles.mealRow}>☀️ {m.lunch}</Text>}
+            {m.dinner && <Text style={styles.mealRow}>🌙 {m.dinner}</Text>}
+            {m.cook && <Text style={styles.cookText}>👨‍🍳 {m.cook}</Text>}
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+      <TouchableOpacity style={styles.fab} onPress={() => openEdit()}>
+        <Text style={styles.fabText}>+</Text>
+      </TouchableOpacity>
+
+      <Modal visible={modalVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>{t('addMeal')}</Text>
+            <TextInput style={styles.input} placeholder={`${t('date')} (YYYY-MM-DD)`} value={selectedDate} onChangeText={setSelectedDate} />
+            <TextInput style={styles.input} placeholder={t('breakfast')} value={breakfast} onChangeText={setBreakfast} />
+            <TextInput style={styles.input} placeholder={t('lunch')} value={lunch} onChangeText={setLunch} />
+            <TextInput style={styles.input} placeholder={t('dinner')} value={dinner} onChangeText={setDinner} />
+            <TextInput style={styles.input} placeholder={t('cook')} value={cook} onChangeText={setCook} />
+            <View style={styles.btnRow}>
+              <TouchableOpacity style={styles.btnCancel} onPress={() => setModalVisible(false)}><Text>{t('cancel')}</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.btnSave} onPress={handleSave}><Text style={{ color: '#fff' }}>{t('save')}</Text></TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  card: { backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 10, elevation: 2 },
+  dateTag: { backgroundColor: '#e8f5e9', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start', marginBottom: 8 },
+  dateText: { color: '#2e7d32', fontSize: 12, fontWeight: '600' },
+  mealRow: { fontSize: 15, color: '#333', marginBottom: 2 },
+  cookText: { fontSize: 13, color: '#888', marginTop: 6 },
+  empty: { textAlign: 'center', color: '#aaa', marginTop: 40, fontStyle: 'italic' },
+  fab: { position: 'absolute', bottom: 24, right: 24, backgroundColor: '#2e7d32', width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 4 },
+  fabText: { color: '#fff', fontSize: 28, lineHeight: 32 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  modal: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24 },
+  modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 16, color: '#333' },
+  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 10, fontSize: 15 },
+  btnRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 8 },
+  btnCancel: { padding: 12 },
+  btnSave: { backgroundColor: '#2e7d32', borderRadius: 8, paddingHorizontal: 20, paddingVertical: 12 },
+});
