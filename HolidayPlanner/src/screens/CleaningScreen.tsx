@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput } from 'react-native';
 import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
 import { CleaningTask, Member, Child } from '../types';
+import DatePickerField from '../components/DatePickerField';
+import { showAlert, showConfirm } from '../utils/alert';
+
+const TASK_TEMPLATES = ['Dishes', 'Sweeping', 'Making Beds', 'Trash', 'Bathroom'];
 
 export default function CleaningScreen() {
   const { t } = useTranslation();
@@ -36,13 +40,13 @@ export default function CleaningScreen() {
   }, [holidayId]);
 
   const handleAdd = async () => {
-    if (!task || !date || !assignedTo) { Alert.alert('Error', 'Task, date, and assignee are required'); return; }
+    if (!task || !date || !assignedTo) { showAlert('Error', 'Task, date, and assignee are required'); return; }
     try {
       await addDoc(collection(db, 'holidays', holidayId!, 'cleaning'), { task, date, assignedTo, done: false });
       setTask(''); setDate(''); setAssignedTo('');
       setModalVisible(false);
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      showAlert('Error', e.message);
     }
   };
 
@@ -50,18 +54,15 @@ export default function CleaningScreen() {
     try {
       await updateDoc(doc(db, 'holidays', holidayId!, 'cleaning', item.id), { done: !item.done });
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      showAlert('Error', e.message);
     }
   };
 
   const handleDelete = (id: string) => {
-    Alert.alert('Delete', 'Remove this task?', [
-      { text: t('cancel'), style: 'cancel' },
-      { text: t('delete'), style: 'destructive', onPress: async () => {
-        try { await deleteDoc(doc(db, 'holidays', holidayId!, 'cleaning', id)); }
-        catch (e: any) { Alert.alert('Error', e.message); }
-      } },
-    ]);
+    showConfirm(t('delete'), 'Remove this task?', async () => {
+      try { await deleteDoc(doc(db, 'holidays', holidayId!, 'cleaning', id)); }
+      catch (e: any) { showAlert('Error', e.message); }
+    });
   };
 
   return (
@@ -89,8 +90,15 @@ export default function CleaningScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>{t('addCleaningTask')}</Text>
+            <View style={styles.templateRow}>
+              {TASK_TEMPLATES.map(name => (
+                <TouchableOpacity key={name} style={styles.templateChip} onPress={() => setTask(name)}>
+                  <Text style={styles.templateChipText}>{name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
             <TextInput style={styles.input} placeholder={t('task')} value={task} onChangeText={setTask} />
-            <TextInput style={styles.input} placeholder={`${t('date')} (YYYY-MM-DD)`} value={date} onChangeText={setDate} />
+            <DatePickerField placeholder={t('date')} value={date} onChange={setDate} />
             <Text style={styles.label}>{t('assignedTo')}:</Text>
             <View style={styles.memberList}>
               {members.map(m => (
@@ -130,6 +138,9 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 16, color: '#333' },
   input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 10, fontSize: 15 },
   label: { fontSize: 14, color: '#666', marginBottom: 8 },
+  templateRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  templateChip: { backgroundColor: '#e8f5e9', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
+  templateChipText: { color: '#2e7d32', fontSize: 13, fontWeight: '600' },
   memberList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   memberChip: { borderWidth: 1, borderColor: '#2e7d32', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
   memberChipSelected: { backgroundColor: '#2e7d32' },

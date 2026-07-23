@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, ScrollView } from 'react-native';
 import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
 import { Competition, Member, Child, Guest } from '../types';
+import { showAlert, showConfirm } from '../utils/alert';
 
 function generateGuestId() {
   return `guest_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -20,6 +21,8 @@ export default function CompetitionsScreen() {
   const [selectedComp, setSelectedComp] = useState<Competition | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [type, setType] = useState<'individual' | 'team'>('individual');
+  const [lowestWins, setLowestWins] = useState(false);
   const [scores, setScores] = useState<Record<string, string>>({});
   const [guests, setGuests] = useState<Guest[]>([]);
   const [newGuestName, setNewGuestName] = useState('');
@@ -44,13 +47,13 @@ export default function CompetitionsScreen() {
   }, [holidayId]);
 
   const handleAdd = async () => {
-    if (!name) { Alert.alert('Error', 'Name is required'); return; }
+    if (!name) { showAlert('Error', 'Name is required'); return; }
     try {
-      await addDoc(collection(db, 'holidays', holidayId!, 'competitions'), { name, description, scores: {} });
-      setName(''); setDescription('');
+      await addDoc(collection(db, 'holidays', holidayId!, 'competitions'), { name, description, scores: {}, type, lowestWins });
+      setName(''); setDescription(''); setType('individual'); setLowestWins(false);
       setAddModalVisible(false);
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      showAlert('Error', e.message);
     }
   };
 
@@ -99,18 +102,15 @@ export default function CompetitionsScreen() {
       }
       setScoreModalVisible(false);
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      showAlert('Error', e.message);
     }
   };
 
   const handleDelete = (id: string) => {
-    Alert.alert('Delete', 'Remove this competition?', [
-      { text: t('cancel'), style: 'cancel' },
-      { text: t('delete'), style: 'destructive', onPress: async () => {
-        try { await deleteDoc(doc(db, 'holidays', holidayId!, 'competitions', id)); }
-        catch (e: any) { Alert.alert('Error', e.message); }
-      } },
-    ]);
+    showConfirm(t('delete'), 'Remove this competition?', async () => {
+      try { await deleteDoc(doc(db, 'holidays', holidayId!, 'competitions', id)); }
+      catch (e: any) { showAlert('Error', e.message); }
+    });
   };
 
   return (
@@ -119,11 +119,20 @@ export default function CompetitionsScreen() {
         data={competitions}
         keyExtractor={i => i.id}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.card} onPress={() => openScores(item)} onLongPress={() => handleDelete(item.id)}>
-            <Text style={styles.cardTitle}>🏆 {item.name}</Text>
-            {item.description && <Text style={styles.cardSub}>{item.description}</Text>}
-            <Text style={styles.tapHint}>Tap to enter scores</Text>
-          </TouchableOpacity>
+          <View style={styles.card}>
+            <TouchableOpacity onPress={() => openScores(item)}>
+              <Text style={styles.cardTitle}>🏆 {item.name}</Text>
+              {item.description && <Text style={styles.cardSub}>{item.description}</Text>}
+              <View style={styles.badgeRow}>
+                {item.type === 'team' && <Text style={styles.badge}>🤝 Team</Text>}
+                {item.lowestWins && <Text style={styles.badge}>🔻 Lowest wins</Text>}
+              </View>
+              <Text style={styles.tapHint}>Tap to enter scores</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.deleteBtn}>
+              <Text style={styles.deleteText}>🗑 {t('delete')}</Text>
+            </TouchableOpacity>
+          </View>
         )}
         contentContainerStyle={{ padding: 12 }}
         ListEmptyComponent={<Text style={styles.empty}>{t('noCompetitions')}</Text>}
@@ -138,6 +147,22 @@ export default function CompetitionsScreen() {
             <Text style={styles.modalTitle}>{t('addCompetition')}</Text>
             <TextInput style={styles.input} placeholder={t('name')} value={name} onChangeText={setName} />
             <TextInput style={styles.input} placeholder={t('description')} value={description} onChangeText={setDescription} />
+            <View style={styles.toggleRow}>
+              <TouchableOpacity style={[styles.toggleBtn, type === 'individual' && styles.toggleBtnSelected]} onPress={() => setType('individual')}>
+                <Text style={type === 'individual' ? styles.toggleTextSelected : styles.toggleText}>Individual</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.toggleBtn, type === 'team' && styles.toggleBtnSelected]} onPress={() => setType('team')}>
+                <Text style={type === 'team' ? styles.toggleTextSelected : styles.toggleText}>Team</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.toggleRow}>
+              <TouchableOpacity style={[styles.toggleBtn, !lowestWins && styles.toggleBtnSelected]} onPress={() => setLowestWins(false)}>
+                <Text style={!lowestWins ? styles.toggleTextSelected : styles.toggleText}>Highest wins</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.toggleBtn, lowestWins && styles.toggleBtnSelected]} onPress={() => setLowestWins(true)}>
+                <Text style={lowestWins ? styles.toggleTextSelected : styles.toggleText}>Lowest wins</Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.row}>
               <TouchableOpacity style={styles.btnCancel} onPress={() => setAddModalVisible(false)}><Text>{t('cancel')}</Text></TouchableOpacity>
               <TouchableOpacity style={styles.btnSave} onPress={handleAdd}><Text style={{ color: '#fff' }}>{t('save')}</Text></TouchableOpacity>
@@ -223,4 +248,13 @@ const styles = StyleSheet.create({
   removeGuestText: { fontSize: 18, color: '#c62828', fontWeight: '700' },
   addGuestRow: { flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 8 },
   addGuestBtn: { backgroundColor: '#2e7d32', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 12 },
+  badgeRow: { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
+  badge: { fontSize: 11, color: '#2e7d32', backgroundColor: '#e8f5e9', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, fontWeight: '600' },
+  deleteBtn: { marginTop: 10 },
+  deleteText: { fontSize: 12, color: '#c62828', fontWeight: '600' },
+  toggleRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  toggleBtn: { flex: 1, borderWidth: 1, borderColor: '#2e7d32', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
+  toggleBtnSelected: { backgroundColor: '#2e7d32' },
+  toggleText: { color: '#2e7d32', fontWeight: '600' },
+  toggleTextSelected: { color: '#fff', fontWeight: '600' },
 });

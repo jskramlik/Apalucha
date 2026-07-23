@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { collection, onSnapshot, deleteDoc, doc, getDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
 import { Member } from '../types';
+import { showAlert, showConfirm } from '../utils/alert';
 
 export default function AdminScreen() {
   const { t } = useTranslation();
@@ -27,11 +28,10 @@ export default function AdminScreen() {
   }
 
   const handleRemoveMember = (m: Member) => {
-    if (m.role === 'admin') { Alert.alert('Cannot remove admin'); return; }
-    Alert.alert('Remove', `Remove ${m.name}?`, [
-      { text: t('cancel'), style: 'cancel' },
-      { text: t('delete'), style: 'destructive', onPress: () => deleteDoc(doc(db, 'holidays', holidayId!, 'members', m.id)) },
-    ]);
+    if (m.role === 'admin') { showAlert('Cannot remove admin'); return; }
+    showConfirm(t('delete'), `Remove ${m.name}?`, () => {
+      deleteDoc(doc(db, 'holidays', holidayId!, 'members', m.id));
+    });
   };
 
   return (

@@ -61,12 +61,16 @@ export interface Guest {
   name: string;
 }
 
+export type CompetitionType = 'individual' | 'team';
+
 export interface Competition {
   id: string;
   name: string;
   description?: string;
   scores: Record<string, number>;
   guests?: Guest[];
+  type?: CompetitionType;
+  lowestWins?: boolean;
 }
 
 export interface CleaningTask {

@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, Alert, Linking, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, Linking, ScrollView } from 'react-native';
 import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
 import { Trip, Member, Child } from '../types';
 import DatePickerField from '../components/DatePickerField';
+import { showAlert, showConfirm } from '../utils/alert';
 
 type Participant = (Member | Child) & { id: string };
 
@@ -42,24 +43,21 @@ export default function TripsScreen() {
   }, [holidayId]);
 
   const handleAdd = async () => {
-    if (!title || !date) { Alert.alert('Error', 'Name and date are required'); return; }
+    if (!title || !date) { showAlert('Error', 'Name and date are required'); return; }
     try {
       await addDoc(collection(db, 'holidays', holidayId!, 'trips'), { title, date, time, location, notes, rsvp: {} });
       setTitle(''); setDate(''); setTime(''); setLocation(''); setNotes('');
       setModalVisible(false);
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      showAlert('Error', e.message);
     }
   };
 
   const handleDelete = (id: string) => {
-    Alert.alert('Delete', 'Remove this trip?', [
-      { text: t('cancel'), style: 'cancel' },
-      { text: t('delete'), style: 'destructive', onPress: async () => {
-        try { await deleteDoc(doc(db, 'holidays', holidayId!, 'trips', id)); }
-        catch (e: any) { Alert.alert('Error', e.message); }
-      } },
-    ]);
+    showConfirm(t('delete'), 'Remove this trip?', async () => {
+      try { await deleteDoc(doc(db, 'holidays', holidayId!, 'trips', id)); }
+      catch (e: any) { showAlert('Error', e.message); }
+    });
   };
 
   const openMap = (location: string) => {
@@ -73,7 +71,7 @@ export default function TripsScreen() {
       await updateDoc(doc(db, 'holidays', holidayId!, 'trips', trip.id), { rsvp: updated });
       setRsvpTrip({ ...trip, rsvp: updated });
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      showAlert('Error', e.message);
     }
   };
 
@@ -85,7 +83,7 @@ export default function TripsScreen() {
         data={trips}
         keyExtractor={i => i.id}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.card} onPress={() => setRsvpTrip(item)} onLongPress={() => handleDelete(item.id)}>
+          <View style={styles.card}>
             <View style={styles.dateTag}><Text style={styles.dateText}>{item.date}</Text></View>
             <Text style={styles.cardTitle}>🗺️ {item.title}</Text>
             {item.time && <Text style={styles.cardSub}>⏰ {item.time}</Text>}
@@ -95,8 +93,15 @@ export default function TripsScreen() {
               </TouchableOpacity>
             )}
             {item.notes && <Text style={styles.cardSub}>{item.notes}</Text>}
-            <Text style={styles.rsvpSummary}>👍 {goingCount(item)} {t('going')}</Text>
-          </TouchableOpacity>
+            <View style={styles.actionRow}>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => setRsvpTrip(item)}>
+                <Text style={styles.actionText}>👍 {goingCount(item)} {t('going')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => handleDelete(item.id)}>
+                <Text style={styles.deleteText}>🗑 {t('delete')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         )}
         contentContainerStyle={{ padding: 12 }}
         ListEmptyComponent={<Text style={styles.empty}>{t('noTrips')}</Text>}
@@ -155,7 +160,10 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 16, fontWeight: '700', color: '#333' },
   cardSub: { fontSize: 13, color: '#666', marginTop: 2 },
   mapLink: { fontSize: 13, color: '#1a73e8', marginTop: 2, textDecorationLine: 'underline' },
-  rsvpSummary: { fontSize: 12, color: '#2e7d32', marginTop: 6, fontWeight: '600' },
+  actionRow: { flexDirection: 'row', gap: 16, marginTop: 10 },
+  actionBtn: { paddingVertical: 4 },
+  actionText: { fontSize: 12, color: '#2e7d32', fontWeight: '600' },
+  deleteText: { fontSize: 12, color: '#c62828', fontWeight: '600' },
   empty: { textAlign: 'center', color: '#aaa', marginTop: 40, fontStyle: 'italic' },
   fab: { position: 'absolute', bottom: 24, right: 24, backgroundColor: '#2e7d32', width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 4 },
   fabText: { color: '#fff', fontSize: 28, lineHeight: 32 },

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { collection, doc, setDoc, query, where, getDocs } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import { auth, db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
 import DatePickerField from '../components/DatePickerField';
+import { showAlert } from '../utils/alert';
 
 // Jan's email is the admin
 const ADMIN_EMAIL = 'jan.skramlik@accenture.com';
@@ -28,7 +29,7 @@ export default function HolidaySetupScreen() {
 
   const handleCreate = async () => {
     if (!name || !startDate || !endDate || !displayName) {
-      Alert.alert('Error', 'Please fill all fields');
+      showAlert('Error', 'Please fill all fields');
       return;
     }
     setLoading(true);
@@ -56,11 +57,11 @@ export default function HolidaySetupScreen() {
         role: isAdmin ? 'admin' : 'dad',
         joinedAt: new Date().toISOString(),
       });
-      Alert.alert('Apalucha Created!', `Invite code: ${code}`);
+      showAlert('Apalucha Created!', `Invite code: ${code}`);
       setHolidayId(holidayRef.id);
       if (navigation.canGoBack()) navigation.goBack();
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      showAlert('Error', e.message);
     } finally {
       setLoading(false);
     }
@@ -68,7 +69,7 @@ export default function HolidaySetupScreen() {
 
   const handleJoin = async () => {
     if (!inviteCode || !displayName) {
-      Alert.alert('Error', 'Please fill all fields');
+      showAlert('Error', 'Please fill all fields');
       return;
     }
     setLoading(true);
@@ -78,7 +79,7 @@ export default function HolidaySetupScreen() {
       const q = query(collection(db, 'holidays'), where('inviteCode', '==', inviteCode.toUpperCase()));
       const snap = await getDocs(q);
       if (snap.empty) {
-        Alert.alert('Error', 'Invalid invite code');
+        showAlert('Error', 'Invalid invite code');
         return;
       }
       const holidayDoc = snap.docs[0];
@@ -97,7 +98,7 @@ export default function HolidaySetupScreen() {
       setHolidayId(holidayDoc.id);
       if (navigation.canGoBack()) navigation.goBack();
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      showAlert('Error', e.message);
     } finally {
       setLoading(false);
     }

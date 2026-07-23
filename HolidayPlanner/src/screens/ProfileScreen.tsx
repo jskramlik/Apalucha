@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView, Switch, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Switch, Modal } from 'react-native';
 import { doc, updateDoc, setDoc, deleteDoc, collection, onSnapshot, query, where } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
@@ -9,6 +9,7 @@ import { auth, db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
 import { Child } from '../types';
 import AvatarPicker, { AVATAR_OPTIONS } from '../components/AvatarPicker';
+import { showAlert, showConfirm } from '../utils/alert';
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
@@ -38,9 +39,9 @@ export default function ProfileScreen() {
     if (!user || !holidayId) return;
     try {
       await updateDoc(doc(db, 'holidays', holidayId, 'members', user.uid), { name: displayName });
-      Alert.alert('Saved!');
+      showAlert('Saved!');
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      showAlert('Error', e.message);
     }
   };
 
@@ -56,7 +57,7 @@ export default function ProfileScreen() {
       });
       setNewChildName('');
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      showAlert('Error', e.message);
     }
   };
 
@@ -75,23 +76,18 @@ export default function ProfileScreen() {
       });
       setEditingChild(null);
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      showAlert('Error', e.message);
     }
   };
 
   const handleRemoveChild = (child: Child) => {
-    Alert.alert('Remove', `Remove ${child.name}?`, [
-      { text: t('cancel'), style: 'cancel' },
-      {
-        text: t('delete'), style: 'destructive', onPress: async () => {
-          try {
-            await deleteDoc(doc(db, 'holidays', holidayId!, 'children', child.id));
-          } catch (e: any) {
-            Alert.alert('Error', e.message);
-          }
-        }
-      },
-    ]);
+    showConfirm(t('delete'), `Remove ${child.name}?`, async () => {
+      try {
+        await deleteDoc(doc(db, 'holidays', holidayId!, 'children', child.id));
+      } catch (e: any) {
+        showAlert('Error', e.message);
+      }
+    });
   };
 
   const toggleLanguage = (val: boolean) => {
@@ -124,10 +120,12 @@ export default function ProfileScreen() {
 
       <Text style={styles.section}>{t('myKids')}</Text>
       {children.map(c => (
-        <TouchableOpacity key={c.id} style={styles.childRow} onPress={() => openEditChild(c)}>
-          <Text style={styles.childName}>{c.avatar ?? '👦'} {c.name}</Text>
+        <View key={c.id} style={styles.childRow}>
+          <TouchableOpacity style={styles.childNameTouch} onPress={() => openEditChild(c)}>
+            <Text style={styles.childName}>{c.avatar ?? '👦'} {c.name}</Text>
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => handleRemoveChild(c)}><Text style={styles.removeText}>Remove</Text></TouchableOpacity>
-        </TouchableOpacity>
+        </View>
       ))}
       <View style={styles.addChildRow}>
         <TextInput style={[styles.input, { flex: 1, marginBottom: 0 }]} placeholder={t('addKid')} value={newChildName} onChangeText={setNewChildName} />
@@ -170,6 +168,7 @@ const styles = StyleSheet.create({
   langRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   langLabel: { fontSize: 15, color: '#333', fontWeight: '600' },
   childRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderRadius: 8, padding: 12, marginBottom: 6 },
+  childNameTouch: { flex: 1 },
   childName: { fontSize: 15, color: '#333' },
   removeText: { color: '#c62828', fontSize: 13 },
   addChildRow: { flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 4 },
