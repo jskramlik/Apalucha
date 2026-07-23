@@ -19,6 +19,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
     {
@@ -41,7 +42,8 @@ export default function LoginScreen() {
   }, [response]);
 
   const handleAuth = async () => {
-    if (!email || !password) return;
+    setErrorMsg('');
+    if (!email || !password) { setErrorMsg('Please enter email and password'); return; }
     setLoading(true);
     try {
       if (isRegister) {
@@ -50,7 +52,7 @@ export default function LoginScreen() {
         await signInWithEmailAndPassword(auth, email, password);
       }
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      setErrorMsg(e.message ?? 'Unknown error');
     } finally {
       setLoading(false);
     }
@@ -79,6 +81,7 @@ export default function LoginScreen() {
         {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{isRegister ? 'Register' : t('signIn')}</Text>}
       </TouchableOpacity>
 
+      {errorMsg ? <Text style={styles.error}>{errorMsg}</Text> : null}
       <TouchableOpacity onPress={() => setIsRegister(!isRegister)}>
         <Text style={styles.toggle}>{isRegister ? 'Already have an account? Sign in' : "Don't have an account? Register"}</Text>
       </TouchableOpacity>
@@ -114,6 +117,7 @@ const styles = StyleSheet.create({
   button: { backgroundColor: '#2e7d32', borderRadius: 8, padding: 16, alignItems: 'center', marginTop: 8 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   toggle: { textAlign: 'center', marginTop: 16, color: '#2e7d32', fontSize: 14 },
+  error: { color: '#c62828', textAlign: 'center', marginTop: 8, fontSize: 13 },
   dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
   divider: { flex: 1, height: 1, backgroundColor: '#ddd' },
   dividerText: { marginHorizontal: 12, color: '#aaa', fontSize: 14 },
