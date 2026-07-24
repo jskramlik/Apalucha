@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, Linking, ScrollView } from 'react-native';
-import { WebView } from 'react-native-webview';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, Linking, ScrollView, Image } from 'react-native';
 import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
@@ -12,10 +11,11 @@ import { geocodeLocation } from '../utils/geocode';
 
 type Participant = (Member | Child) & { id: string };
 
-function mapEmbedUrl(lat: number, lng: number): string {
-  const delta = 0.01;
-  const bbox = `${lng - delta},${lat - delta},${lng + delta},${lat + delta}`;
-  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&marker=${lat},${lng}`;
+// Free static map image (no API key, works identically on web and native --
+// react-native-webview explicitly does not support the web platform, so an
+// <Image> avoids that native-only limitation entirely).
+function staticMapUrl(lat: number, lng: number): string {
+  return `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=15&size=400x200&maptype=mapnik&markers=${lat},${lng},red-pushpin`;
 }
 
 export default function TripsScreen() {
@@ -141,9 +141,7 @@ export default function TripsScreen() {
                   <Text style={styles.mapLink}>📍 {item.location}</Text>
                 </TouchableOpacity>
                 {item.lat != null && item.lng != null && (
-                  <View style={styles.mapPreview}>
-                    <WebView source={{ uri: mapEmbedUrl(item.lat, item.lng) }} style={{ flex: 1 }} />
-                  </View>
+                  <Image source={{ uri: staticMapUrl(item.lat, item.lng) }} style={styles.mapPreview} resizeMode="cover" />
                 )}
               </>
             )}

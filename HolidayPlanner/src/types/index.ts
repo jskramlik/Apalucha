@@ -89,6 +89,7 @@ export interface ScheduleEntry {
   id: string;
   date: string;
   order: number;
+  time?: string;
   refType: ScheduleRefType;
   refId: string;
   label: string;
