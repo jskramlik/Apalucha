@@ -19,6 +19,7 @@ export default function CompetitionsScreen() {
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [scoreModalVisible, setScoreModalVisible] = useState(false);
   const [selectedComp, setSelectedComp] = useState<Competition | null>(null);
+  const [editingCompId, setEditingCompId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState<'individual' | 'team'>('individual');
@@ -46,11 +47,29 @@ export default function CompetitionsScreen() {
     return () => { unsubComps(); unsubMembers(); unsubChildren(); };
   }, [holidayId]);
 
-  const handleAdd = async () => {
+  const openAdd = () => {
+    setEditingCompId(null);
+    setName(''); setDescription(''); setType('individual'); setLowestWins(false);
+    setAddModalVisible(true);
+  };
+
+  const openEditComp = (comp: Competition) => {
+    setEditingCompId(comp.id);
+    setName(comp.name);
+    setDescription(comp.description ?? '');
+    setType(comp.type ?? 'individual');
+    setLowestWins(comp.lowestWins ?? false);
+    setAddModalVisible(true);
+  };
+
+  const handleSaveCompetition = async () => {
     if (!name) { showAlert('Error', 'Name is required'); return; }
     try {
-      await addDoc(collection(db, 'holidays', holidayId!, 'competitions'), { name, description, scores: {}, type, lowestWins });
-      setName(''); setDescription(''); setType('individual'); setLowestWins(false);
+      if (editingCompId) {
+        await updateDoc(doc(db, 'holidays', holidayId!, 'competitions', editingCompId), { name, description, type, lowestWins });
+      } else {
+        await addDoc(collection(db, 'holidays', holidayId!, 'competitions'), { name, description, scores: {}, type, lowestWins });
+      }
       setAddModalVisible(false);
     } catch (e: any) {
       showAlert('Error', e.message);
@@ -129,22 +148,27 @@ export default function CompetitionsScreen() {
               </View>
               <Text style={styles.tapHint}>Tap to enter scores</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.deleteBtn}>
-              <Text style={styles.deleteText}>🗑 {t('delete')}</Text>
-            </TouchableOpacity>
+            <View style={styles.cardActionsRow}>
+              <TouchableOpacity onPress={() => openEditComp(item)} style={styles.deleteBtn}>
+                <Text style={styles.editText}>✏️ {t('edit')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.deleteBtn}>
+                <Text style={styles.deleteText}>🗑 {t('delete')}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
         contentContainerStyle={{ padding: 12 }}
         ListEmptyComponent={<Text style={styles.empty}>{t('noCompetitions')}</Text>}
       />
-      <TouchableOpacity style={styles.fab} onPress={() => setAddModalVisible(true)}>
+      <TouchableOpacity style={styles.fab} onPress={openAdd}>
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
 
       <Modal visible={addModalVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modal}>
-            <Text style={styles.modalTitle}>{t('addCompetition')}</Text>
+            <Text style={styles.modalTitle}>{editingCompId ? t('edit') : t('addCompetition')}</Text>
             <TextInput style={styles.input} placeholder={t('name')} value={name} onChangeText={setName} />
             <TextInput style={styles.input} placeholder={t('description')} value={description} onChangeText={setDescription} />
             <View style={styles.toggleRow}>
@@ -165,7 +189,7 @@ export default function CompetitionsScreen() {
             </View>
             <View style={styles.row}>
               <TouchableOpacity style={styles.btnCancel} onPress={() => setAddModalVisible(false)}><Text>{t('cancel')}</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.btnSave} onPress={handleAdd}><Text style={{ color: '#fff' }}>{t('save')}</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.btnSave} onPress={handleSaveCompetition}><Text style={{ color: '#fff' }}>{t('save')}</Text></TouchableOpacity>
             </View>
           </View>
         </View>
@@ -250,8 +274,10 @@ const styles = StyleSheet.create({
   addGuestBtn: { backgroundColor: '#2e7d32', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 12 },
   badgeRow: { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
   badge: { fontSize: 11, color: '#2e7d32', backgroundColor: '#e8f5e9', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, fontWeight: '600' },
-  deleteBtn: { marginTop: 10 },
+  cardActionsRow: { flexDirection: 'row', gap: 16, marginTop: 10 },
+  deleteBtn: {},
   deleteText: { fontSize: 12, color: '#c62828', fontWeight: '600' },
+  editText: { fontSize: 12, color: '#2e7d32', fontWeight: '600' },
   toggleRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   toggleBtn: { flex: 1, borderWidth: 1, borderColor: '#2e7d32', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
   toggleBtnSelected: { backgroundColor: '#2e7d32' },

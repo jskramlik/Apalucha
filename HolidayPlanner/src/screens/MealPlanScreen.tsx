@@ -59,6 +59,9 @@ export default function MealPlanScreen() {
 
   const handleSave = async () => {
     if (!selectedDate) { showAlert('Error', 'Date is required'); return; }
+    if (breakfast && !breakfastCook) { showAlert('Error', 'Please select a cook for breakfast'); return; }
+    if (lunch && !lunchCook) { showAlert('Error', 'Please select a cook for lunch'); return; }
+    if (dinner && !dinnerCook) { showAlert('Error', 'Please select a cook for dinner'); return; }
     try {
       await setDoc(doc(db, 'holidays', holidayId!, 'meals', selectedDate), {
         breakfast, breakfastCook, lunch, lunchCook, dinner, dinnerCook,

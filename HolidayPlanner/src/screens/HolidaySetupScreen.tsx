@@ -64,8 +64,8 @@ export default function HolidaySetupScreen() {
   };
 
   const handleJoin = async () => {
-    if (!inviteCode || !displayName) {
-      showAlert('Error', 'Please fill all fields');
+    if (!inviteCode) {
+      showAlert('Error', 'Please enter an invite code');
       return;
     }
     setLoading(true);
@@ -79,8 +79,9 @@ export default function HolidaySetupScreen() {
       }
       const holidayDoc = snap.docs[0];
       const holidayData = holidayDoc.data();
+      const autoName = user.displayName || user.email!.split('@')[0];
       await setDoc(doc(db, 'holidays', holidayDoc.id, 'members', user.uid), {
-        name: displayName,
+        name: autoName,
         role: 'dad',
         photoUrl: '',
         totalPoints: 0,
@@ -111,10 +112,9 @@ export default function HolidaySetupScreen() {
         </TouchableOpacity>
       </View>
 
-      <TextInput style={styles.input} placeholder={t('name')} value={displayName} onChangeText={setDisplayName} />
-
       {tab === 'create' ? (
         <>
+          <TextInput style={styles.input} placeholder={t('name')} value={displayName} onChangeText={setDisplayName} />
           <TextInput style={styles.input} placeholder={t('holidayName')} value={name} onChangeText={setName} />
           <DatePickerField placeholder={t('startDate')} value={startDate} onChange={setStartDate} />
           <DatePickerField placeholder={t('endDate')} value={endDate} onChange={setEndDate} />

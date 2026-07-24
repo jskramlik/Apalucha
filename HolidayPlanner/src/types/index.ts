@@ -51,6 +51,8 @@ export interface Trip {
   date: string;
   time?: string;
   location?: string;
+  lat?: number;
+  lng?: number;
   notes?: string;
   imageUrl?: string;
   rsvp?: Record<string, boolean>;
@@ -79,4 +81,15 @@ export interface CleaningTask {
   assignedTo: string;
   date: string;
   done: boolean;
+}
+
+export type ScheduleRefType = 'trip' | 'meal' | 'competition';
+
+export interface ScheduleEntry {
+  id: string;
+  date: string;
+  order: number;
+  refType: ScheduleRefType;
+  refId: string;
+  label: string;
 }

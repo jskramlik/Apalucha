@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, Linking, ScrollView } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
@@ -7,8 +8,15 @@ import { useAuth } from '../contexts/AuthContext';
 import { Trip, Member, Child } from '../types';
 import DatePickerField from '../components/DatePickerField';
 import { showAlert, showConfirm } from '../utils/alert';
+import { geocodeLocation } from '../utils/geocode';
 
 type Participant = (Member | Child) & { id: string };
+
+function mapEmbedUrl(lat: number, lng: number): string {
+  const delta = 0.01;
+  const bbox = `${lng - delta},${lat - delta},${lng + delta},${lat + delta}`;
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&marker=${lat},${lng}`;
+}
 
 export default function TripsScreen() {
   const { t } = useTranslation();
@@ -16,12 +24,14 @@ export default function TripsScreen() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [editingTripId, setEditingTripId] = useState<string | null>(null);
   const [rsvpTrip, setRsvpTrip] = useState<Trip | null>(null);
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [location, setLocation] = useState('');
   const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!holidayId) return;
@@ -42,14 +52,49 @@ export default function TripsScreen() {
     return () => { unsubTrips(); unsubMembers(); unsubChildren(); };
   }, [holidayId]);
 
-  const handleAdd = async () => {
+  const openAdd = () => {
+    setEditingTripId(null);
+    setTitle(''); setDate(''); setTime(''); setLocation(''); setNotes('');
+    setModalVisible(true);
+  };
+
+  const openEditTrip = (trip: Trip) => {
+    setEditingTripId(trip.id);
+    setTitle(trip.title);
+    setDate(trip.date);
+    setTime(trip.time ?? '');
+    setLocation(trip.location ?? '');
+    setNotes(trip.notes ?? '');
+    setModalVisible(true);
+  };
+
+  const handleSaveTrip = async () => {
     if (!title || !date) { showAlert('Error', 'Name and date are required'); return; }
+    setSaving(true);
     try {
-      await addDoc(collection(db, 'holidays', holidayId!, 'trips'), { title, date, time, location, notes, rsvp: {} });
-      setTitle(''); setDate(''); setTime(''); setLocation(''); setNotes('');
+      const existing = editingTripId ? trips.find(tr => tr.id === editingTripId) : undefined;
+      let coords: { lat: number; lng: number } | null = null;
+      if (location && location !== existing?.location) {
+        coords = await geocodeLocation(location);
+      } else if (existing) {
+        coords = existing.lat != null && existing.lng != null ? { lat: existing.lat, lng: existing.lng } : null;
+      }
+
+      const data = {
+        title, date, time, location, notes,
+        ...(coords ? { lat: coords.lat, lng: coords.lng } : {}),
+      };
+
+      if (editingTripId) {
+        await updateDoc(doc(db, 'holidays', holidayId!, 'trips', editingTripId), data);
+      } else {
+        await addDoc(collection(db, 'holidays', holidayId!, 'trips'), { ...data, rsvp: {} });
+      }
       setModalVisible(false);
     } catch (e: any) {
       showAlert('Error', e.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -84,18 +129,30 @@ export default function TripsScreen() {
         keyExtractor={i => i.id}
         renderItem={({ item }) => (
           <View style={styles.card}>
-            <View style={styles.dateTag}><Text style={styles.dateText}>{item.date}</Text></View>
-            <Text style={styles.cardTitle}>🗺️ {item.title}</Text>
-            {item.time && <Text style={styles.cardSub}>⏰ {item.time}</Text>}
+            <TouchableOpacity onPress={() => openEditTrip(item)}>
+              <View style={styles.dateTag}><Text style={styles.dateText}>{item.date}</Text></View>
+              <Text style={styles.cardTitle}>🗺️ {item.title}</Text>
+              {item.time && <Text style={styles.cardSub}>⏰ {item.time}</Text>}
+              {item.notes && <Text style={styles.cardSub}>{item.notes}</Text>}
+            </TouchableOpacity>
             {item.location && (
-              <TouchableOpacity onPress={() => openMap(item.location!)}>
-                <Text style={styles.mapLink}>📍 {item.location}</Text>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity onPress={() => openMap(item.location!)}>
+                  <Text style={styles.mapLink}>📍 {item.location}</Text>
+                </TouchableOpacity>
+                {item.lat != null && item.lng != null && (
+                  <View style={styles.mapPreview}>
+                    <WebView source={{ uri: mapEmbedUrl(item.lat, item.lng) }} style={{ flex: 1 }} />
+                  </View>
+                )}
+              </>
             )}
-            {item.notes && <Text style={styles.cardSub}>{item.notes}</Text>}
             <View style={styles.actionRow}>
               <TouchableOpacity style={styles.actionBtn} onPress={() => setRsvpTrip(item)}>
                 <Text style={styles.actionText}>👍 {goingCount(item)} {t('going')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => openEditTrip(item)}>
+                <Text style={styles.editText}>✏️ {t('edit')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.actionBtn} onPress={() => handleDelete(item.id)}>
                 <Text style={styles.deleteText}>🗑 {t('delete')}</Text>
@@ -106,14 +163,14 @@ export default function TripsScreen() {
         contentContainerStyle={{ padding: 12 }}
         ListEmptyComponent={<Text style={styles.empty}>{t('noTrips')}</Text>}
       />
-      <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
+      <TouchableOpacity style={styles.fab} onPress={openAdd}>
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
 
       <Modal visible={modalVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modal}>
-            <Text style={styles.modalTitle}>{t('addTrip')}</Text>
+            <Text style={styles.modalTitle}>{editingTripId ? t('edit') : t('addTrip')}</Text>
             <TextInput style={styles.input} placeholder={t('name')} value={title} onChangeText={setTitle} />
             <DatePickerField placeholder={t('date')} value={date} onChange={setDate} />
             <TextInput style={styles.input} placeholder={t('time')} value={time} onChangeText={setTime} />
@@ -121,7 +178,7 @@ export default function TripsScreen() {
             <TextInput style={styles.input} placeholder={t('notes')} value={notes} onChangeText={setNotes} multiline />
             <View style={styles.row}>
               <TouchableOpacity style={styles.btnCancel} onPress={() => setModalVisible(false)}><Text>{t('cancel')}</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.btnSave} onPress={handleAdd}><Text style={{ color: '#fff' }}>{t('save')}</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.btnSave} onPress={handleSaveTrip} disabled={saving}><Text style={{ color: '#fff' }}>{saving ? '...' : t('save')}</Text></TouchableOpacity>
             </View>
           </View>
         </View>
@@ -159,10 +216,12 @@ const styles = StyleSheet.create({
   dateText: { color: '#2e7d32', fontSize: 12, fontWeight: '600' },
   cardTitle: { fontSize: 16, fontWeight: '700', color: '#333' },
   cardSub: { fontSize: 13, color: '#666', marginTop: 2 },
-  mapLink: { fontSize: 13, color: '#1a73e8', marginTop: 2, textDecorationLine: 'underline' },
+  mapLink: { fontSize: 13, color: '#1a73e8', marginTop: 6, textDecorationLine: 'underline' },
+  mapPreview: { height: 140, borderRadius: 8, overflow: 'hidden', marginTop: 8 },
   actionRow: { flexDirection: 'row', gap: 16, marginTop: 10 },
   actionBtn: { paddingVertical: 4 },
   actionText: { fontSize: 12, color: '#2e7d32', fontWeight: '600' },
+  editText: { fontSize: 12, color: '#2e7d32', fontWeight: '600' },
   deleteText: { fontSize: 12, color: '#c62828', fontWeight: '600' },
   empty: { textAlign: 'center', color: '#aaa', marginTop: 40, fontStyle: 'italic' },
   fab: { position: 'absolute', bottom: 24, right: 24, backgroundColor: '#2e7d32', width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 4 },

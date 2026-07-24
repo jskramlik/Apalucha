@@ -8,7 +8,7 @@ import { CleaningTask, Member, Child } from '../types';
 import DatePickerField from '../components/DatePickerField';
 import { showAlert, showConfirm } from '../utils/alert';
 
-const TASK_TEMPLATES = ['Dishes', 'Sweeping', 'Making Beds', 'Trash', 'Bathroom'];
+const TASK_TEMPLATE_KEYS = ['templateDishes', 'templateSweeping', 'templateMakingBeds', 'templateTrash', 'templateBathroom'] as const;
 
 export default function CleaningScreen() {
   const { t } = useTranslation();
@@ -91,9 +91,9 @@ export default function CleaningScreen() {
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>{t('addCleaningTask')}</Text>
             <View style={styles.templateRow}>
-              {TASK_TEMPLATES.map(name => (
-                <TouchableOpacity key={name} style={styles.templateChip} onPress={() => setTask(name)}>
-                  <Text style={styles.templateChipText}>{name}</Text>
+              {TASK_TEMPLATE_KEYS.map(key => (
+                <TouchableOpacity key={key} style={styles.templateChip} onPress={() => setTask(t(key))}>
+                  <Text style={styles.templateChipText}>{t(key)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
