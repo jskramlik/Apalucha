@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, StyleProp, ViewStyle } from 'react-native';
 import { useTheme } from '../../theme/ThemeContext';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'destructive';
@@ -10,7 +10,7 @@ interface Props {
   variant?: Variant;
   disabled?: boolean;
   loading?: boolean;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export default function Button({ label, onPress, variant = 'primary', disabled, loading, style }: Props) {

@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { useTranslation } from 'react-i18next';
 import { auth } from '../firebase/config';
+import { useTheme } from '../theme/ThemeContext';
+import { Screen, TextField, Button } from '../components/ui';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -14,6 +16,7 @@ const GOOGLE_CLIENT_ID = '342767702765-drjdtooc7ljs7thfsa8i4s9646edpio3.apps.goo
 
 export default function LoginScreen() {
   const { t } = useTranslation();
+  const { colors, spacing, radius, typography } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -60,69 +63,54 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>🏕️ Apalucha Planner</Text>
+    <Screen style={{ justifyContent: 'center', padding: spacing.xxl }}>
+      <Text style={[typography.title, { color: colors.primary, textAlign: 'center', marginBottom: spacing.xxxl }]}>
+        🏕️ Apalucha Planner
+      </Text>
 
-      <TextInput
-        style={styles.input}
+      <TextField
         placeholder={t('email')}
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
         keyboardType="email-address"
       />
-      <TextInput
-        style={styles.input}
+      <TextField
         placeholder={t('password')}
         value={password}
         onChangeText={setPassword}
         secureTextEntry
       />
-      <TouchableOpacity style={styles.button} onPress={handleAuth} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{isRegister ? 'Register' : t('signIn')}</Text>}
-      </TouchableOpacity>
+      <Button label={isRegister ? 'Register' : t('signIn')} onPress={handleAuth} loading={loading} style={{ marginTop: spacing.sm }} />
 
-      {errorMsg ? <Text style={styles.error}>{errorMsg}</Text> : null}
+      {errorMsg ? <Text style={[typography.caption, { color: colors.error, textAlign: 'center', marginTop: spacing.md }]}>{errorMsg}</Text> : null}
       <TouchableOpacity onPress={() => setIsRegister(!isRegister)}>
-        <Text style={styles.toggle}>{isRegister ? 'Already have an account? Sign in' : "Don't have an account? Register"}</Text>
+        <Text style={[typography.caption, { color: colors.primary, textAlign: 'center', marginTop: spacing.lg }]}>
+          {isRegister ? 'Already have an account? Sign in' : "Don't have an account? Register"}
+        </Text>
       </TouchableOpacity>
 
       <View style={styles.dividerRow}>
-        <View style={styles.divider} />
-        <Text style={styles.dividerText}>or</Text>
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+        <Text style={[typography.caption, { color: colors.textMuted, marginHorizontal: spacing.md }]}>or</Text>
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
       </View>
 
       <TouchableOpacity
-        style={styles.googleButton}
+        style={[styles.googleButton, { backgroundColor: colors.surfaceElevated, borderRadius: radius.md, borderColor: colors.border }]}
         onPress={() => promptAsync()}
         disabled={!request || googleLoading}
       >
-        {googleLoading ? (
-          <ActivityIndicator color="#333" />
-        ) : (
-          <>
-            <Text style={styles.googleIcon}>G</Text>
-            <Text style={styles.googleText}>Continue with Google</Text>
-          </>
-        )}
+        <Text style={styles.googleIcon}>G</Text>
+        <Text style={[typography.body, { color: colors.textPrimary, fontWeight: '600' }]}>{googleLoading ? '...' : 'Continue with Google'}</Text>
       </TouchableOpacity>
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#f5f5f5' },
-  title: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 32, color: '#2e7d32' },
-  input: { backgroundColor: '#fff', borderRadius: 8, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#ddd', fontSize: 16 },
-  button: { backgroundColor: '#2e7d32', borderRadius: 8, padding: 16, alignItems: 'center', marginTop: 8 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  toggle: { textAlign: 'center', marginTop: 16, color: '#2e7d32', fontSize: 14 },
-  error: { color: '#c62828', textAlign: 'center', marginTop: 8, fontSize: 13 },
   dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
-  divider: { flex: 1, height: 1, backgroundColor: '#ddd' },
-  dividerText: { marginHorizontal: 12, color: '#aaa', fontSize: 14 },
-  googleButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', borderRadius: 8, padding: 14, borderWidth: 1, borderColor: '#ddd', gap: 10 },
+  divider: { flex: 1, height: StyleSheet.hairlineWidth },
+  googleButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 14, borderWidth: StyleSheet.hairlineWidth, gap: 10 },
   googleIcon: { fontSize: 18, fontWeight: 'bold', color: '#4285F4' },
-  googleText: { fontSize: 16, color: '#333', fontWeight: '500' },
 });

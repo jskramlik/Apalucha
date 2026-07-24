@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Switch, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch } from 'react-native';
 import { doc, updateDoc, setDoc, deleteDoc, collection, onSnapshot, query, where, getDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
@@ -7,14 +7,17 @@ import { useNavigation } from '@react-navigation/native';
 import i18n from '../i18n';
 import { auth, db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../theme/ThemeContext';
 import { Child } from '../types';
 import AvatarPicker, { AVATAR_OPTIONS } from '../components/AvatarPicker';
 import { showAlert, showConfirm } from '../utils/alert';
+import { Screen, Card, TextField, Button, Chip, Avatar, BottomSheetModal } from '../components/ui';
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation();
   const { user, member, holidayId } = useAuth();
+  const { colors, spacing, typography, preference, setPreference } = useTheme();
   const [displayName, setDisplayName] = useState('');
   const [children, setChildren] = useState<Child[]>([]);
   const [newChildName, setNewChildName] = useState('');
@@ -104,102 +107,91 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
-      <View style={styles.avatarContainer}>
-        <View style={styles.avatarPlaceholder}>
-          <Text style={styles.avatarLetter}>{(member?.name ?? user?.email ?? 'U')[0].toUpperCase()}</Text>
+    <Screen>
+      <ScrollView contentContainerStyle={{ padding: spacing.xl, paddingBottom: 110 }}>
+        <View style={styles.avatarContainer}>
+          <Avatar name={member?.name ?? user?.email ?? 'U'} size={90} />
         </View>
-      </View>
 
-      <Text style={styles.section}>{t('name')}</Text>
-      <TextInput style={styles.input} value={displayName} onChangeText={setDisplayName} />
-      <TouchableOpacity style={styles.button} onPress={handleSaveName}><Text style={styles.buttonText}>{t('save')}</Text></TouchableOpacity>
+        <Text style={[typography.small, styles.sectionLabel, { color: colors.textMuted }]}>{t('name')}</Text>
+        <TextField value={displayName} onChangeText={setDisplayName} />
+        <Button label={t('save')} onPress={handleSaveName} />
 
-      <TouchableOpacity style={styles.switchHolidayButton} onPress={() => navigation.navigate('MyHolidays' as never)}>
-        <Text style={styles.switchHolidayText}>🔄 {t('switchHoliday')}</Text>
-      </TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate('MyHolidays' as never)} style={{ marginTop: spacing.xl }}>
+          <Card style={styles.rowCard}>
+            <Text style={[typography.subheading, { color: colors.primary }]}>🔄 {t('switchHoliday')}</Text>
+          </Card>
+        </TouchableOpacity>
 
-      {!!inviteCode && (
-        <View style={styles.codeCard}>
-          <Text style={styles.codeLabel}>{t('inviteCode')}</Text>
-          <Text style={styles.code}>{inviteCode}</Text>
-          <Text style={styles.codeHint}>Share this code with other dads to join</Text>
+        {!!inviteCode && (
+          <Card style={[styles.codeCard, { backgroundColor: colors.primary, marginTop: spacing.md }]}>
+            <Text style={[typography.small, { color: colors.primaryText, opacity: 0.8 }]}>{t('inviteCode')}</Text>
+            <Text style={styles.code}>{inviteCode}</Text>
+            <Text style={[typography.small, { color: colors.primaryText, opacity: 0.8, marginTop: spacing.sm, textAlign: 'center' }]}>
+              Share this code with other dads to join
+            </Text>
+          </Card>
+        )}
+
+        <Text style={[typography.small, styles.sectionLabel, { color: colors.textMuted }]}>{t('language')}</Text>
+        <View style={styles.langRow}>
+          <Text style={[typography.subheading, { color: colors.textPrimary }]}>EN</Text>
+          <Switch value={isCzech} onValueChange={toggleLanguage} trackColor={{ true: colors.primary }} />
+          <Text style={[typography.subheading, { color: colors.textPrimary }]}>CZ</Text>
         </View>
-      )}
 
-      <Text style={styles.section}>{t('language')}</Text>
-      <View style={styles.langRow}>
-        <Text style={styles.langLabel}>EN</Text>
-        <Switch value={isCzech} onValueChange={toggleLanguage} trackColor={{ true: '#2e7d32' }} />
-        <Text style={styles.langLabel}>CZ</Text>
-      </View>
+        <Text style={[typography.small, styles.sectionLabel, { color: colors.textMuted }]}>Theme</Text>
+        <View style={styles.themeRow}>
+          <Chip label="Light" selected={preference === 'light'} onPress={() => setPreference('light')} />
+          <Chip label="Dark" selected={preference === 'dark'} onPress={() => setPreference('dark')} />
+          <Chip label="System" selected={preference === 'system'} onPress={() => setPreference('system')} />
+        </View>
 
-      <Text style={styles.section}>{t('myKids')}</Text>
-      {children.map(c => (
-        <View key={c.id} style={styles.childRow}>
-          <TouchableOpacity style={styles.childNameTouch} onPress={() => openEditChild(c)}>
-            <Text style={styles.childName}>{c.avatar ?? '👦'} {c.name}</Text>
+        <Text style={[typography.small, styles.sectionLabel, { color: colors.textMuted }]}>{t('myKids')}</Text>
+        {children.map(c => (
+          <Card key={c.id} style={styles.childRow}>
+            <TouchableOpacity style={{ flex: 1 }} onPress={() => openEditChild(c)}>
+              <Text style={[typography.body, { color: colors.textPrimary }]}>{c.avatar ?? '👦'} {c.name}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleRemoveChild(c)}>
+              <Text style={[typography.caption, { color: colors.error }]}>Remove</Text>
+            </TouchableOpacity>
+          </Card>
+        ))}
+        <View style={styles.addChildRow}>
+          <TextField style={{ flex: 1, marginBottom: 0 }} placeholder={t('addKid')} value={newChildName} onChangeText={setNewChildName} />
+          <TouchableOpacity onPress={handleAddChild} style={[styles.addButton, { backgroundColor: colors.primary }]}>
+            <Text style={[typography.heading, { color: colors.primaryText }]}>+</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => handleRemoveChild(c)}><Text style={styles.removeText}>Remove</Text></TouchableOpacity>
         </View>
-      ))}
-      <View style={styles.addChildRow}>
-        <TextInput style={[styles.input, { flex: 1, marginBottom: 0 }]} placeholder={t('addKid')} value={newChildName} onChangeText={setNewChildName} />
-        <TouchableOpacity style={styles.addButton} onPress={handleAddChild}><Text style={styles.buttonText}>+</Text></TouchableOpacity>
-      </View>
 
-      <TouchableOpacity style={styles.logoutButton} onPress={() => signOut(auth)}>
-        <Text style={styles.logoutText}>{t('logout')}</Text>
-      </TouchableOpacity>
+        <Button label={t('logout')} variant="destructive" onPress={() => signOut(auth)} style={{ marginTop: spacing.xxxl }} />
 
-      <Modal visible={!!editingChild} animationType="slide" transparent onRequestClose={() => setEditingChild(null)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modal}>
-            <Text style={styles.modalTitle}>{t('editKid')}</Text>
-            <TextInput style={styles.input} placeholder={t('name')} value={editName} onChangeText={setEditName} />
-            <Text style={styles.section}>{t('chooseAvatar')}</Text>
-            <AvatarPicker value={editAvatar} onChange={setEditAvatar} />
-            <View style={styles.modalRow}>
-              <TouchableOpacity style={styles.btnCancel} onPress={() => setEditingChild(null)}><Text>{t('cancel')}</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.button} onPress={handleSaveChildEdit}><Text style={styles.buttonText}>{t('save')}</Text></TouchableOpacity>
-            </View>
+        <BottomSheetModal visible={!!editingChild} onClose={() => setEditingChild(null)}>
+          <Text style={[typography.heading, { color: colors.textPrimary, marginBottom: spacing.lg }]}>{t('editKid')}</Text>
+          <TextField placeholder={t('name')} value={editName} onChangeText={setEditName} />
+          <Text style={[typography.small, styles.sectionLabel, { color: colors.textMuted }]}>{t('chooseAvatar')}</Text>
+          <AvatarPicker value={editAvatar} onChange={setEditAvatar} />
+          <View style={styles.modalRow}>
+            <Button label={t('cancel')} variant="ghost" onPress={() => setEditingChild(null)} />
+            <Button label={t('save')} onPress={handleSaveChildEdit} />
           </View>
-        </View>
-      </Modal>
-    </ScrollView>
+        </BottomSheetModal>
+      </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
   avatarContainer: { alignItems: 'center', marginBottom: 24 },
-  avatar: { width: 90, height: 90, borderRadius: 45 },
-  avatarPlaceholder: { width: 90, height: 90, borderRadius: 45, backgroundColor: '#2e7d32', alignItems: 'center', justifyContent: 'center' },
-  avatarLetter: { color: '#fff', fontSize: 36, fontWeight: 'bold' },
-  photoHint: { color: '#aaa', marginTop: 6, fontSize: 13 },
-  section: { fontSize: 14, fontWeight: '700', color: '#666', marginTop: 20, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
-  input: { backgroundColor: '#fff', borderRadius: 8, padding: 12, borderWidth: 1, borderColor: '#ddd', fontSize: 15, marginBottom: 10 },
-  button: { backgroundColor: '#2e7d32', borderRadius: 8, padding: 12, alignItems: 'center' },
-  buttonText: { color: '#fff', fontWeight: '600' },
-  langRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  langLabel: { fontSize: 15, color: '#333', fontWeight: '600' },
-  childRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderRadius: 8, padding: 12, marginBottom: 6 },
-  childNameTouch: { flex: 1 },
-  childName: { fontSize: 15, color: '#333' },
-  removeText: { color: '#c62828', fontSize: 13 },
-  addChildRow: { flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 4 },
-  addButton: { backgroundColor: '#2e7d32', borderRadius: 8, padding: 12, paddingHorizontal: 16 },
-  logoutButton: { marginTop: 32, borderWidth: 1, borderColor: '#c62828', borderRadius: 8, padding: 14, alignItems: 'center' },
-  logoutText: { color: '#c62828', fontWeight: '600', fontSize: 15 },
-  switchHolidayButton: { marginTop: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: '#2e7d32', borderRadius: 8, padding: 14, alignItems: 'center' },
-  switchHolidayText: { color: '#2e7d32', fontWeight: '600', fontSize: 15 },
-  codeCard: { marginTop: 16, backgroundColor: '#2e7d32', borderRadius: 16, padding: 20, alignItems: 'center' },
-  codeLabel: { color: '#a5d6a7', fontSize: 13, marginBottom: 6 },
+  sectionLabel: { marginTop: 24, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
+  rowCard: { alignItems: 'center' },
+  codeCard: { alignItems: 'center' },
   code: { color: '#fff', fontSize: 28, fontWeight: 'bold', letterSpacing: 6 },
-  codeHint: { color: '#a5d6a7', fontSize: 12, marginTop: 8, textAlign: 'center' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24 },
-  modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 16, color: '#333' },
+  langRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  themeRow: { flexDirection: 'row', gap: 8 },
+  childRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  addChildRow: { flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 4 },
+  addButton: { borderRadius: 12, padding: 12, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center' },
   modalRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 8 },
-  btnCancel: { padding: 12 },
 });

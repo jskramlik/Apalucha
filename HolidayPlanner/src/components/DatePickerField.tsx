@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import { MONTH_NAMES, toIso, parseIso, nextMonth, previousMonth, buildCalendarCells, isWithinRange } from '../utils/dateUtils';
+import { useTheme } from '../theme/ThemeContext';
 
 const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export default function DatePickerField({ placeholder, value, onChange, minDate, maxDate }: Props) {
+  const { colors, radius, spacing, typography } = useTheme();
   const [visible, setVisible] = useState(false);
   const parsed = parseIso(value);
   const today = new Date();
@@ -43,26 +45,33 @@ export default function DatePickerField({ placeholder, value, onChange, minDate,
 
   return (
     <>
-      <TouchableOpacity style={styles.input} onPress={open}>
-        <Text style={value ? styles.valueText : styles.placeholderText}>{value || placeholder}</Text>
+      <TouchableOpacity
+        style={[styles.input, { backgroundColor: colors.surfaceElevated, borderRadius: radius.md, borderColor: colors.border }]}
+        onPress={open}
+      >
+        <Text style={[typography.body, { color: value ? colors.textPrimary : colors.textMuted }]}>{value || placeholder}</Text>
       </TouchableOpacity>
 
       <Modal visible={visible} transparent animationType="fade" onRequestClose={() => setVisible(false)}>
-        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setVisible(false)}>
-          <TouchableOpacity activeOpacity={1} style={styles.calendar} onPress={() => {}}>
+        <TouchableOpacity style={[styles.overlay, { backgroundColor: colors.overlay }]} activeOpacity={1} onPress={() => setVisible(false)}>
+          <TouchableOpacity
+            activeOpacity={1}
+            style={[styles.calendar, { backgroundColor: colors.surface, borderRadius: radius.xl }]}
+            onPress={() => {}}
+          >
             <View style={styles.header}>
               <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.navButton}>
-                <Text style={styles.navText}>‹</Text>
+                <Text style={[styles.navText, { color: colors.primary }]}>‹</Text>
               </TouchableOpacity>
-              <Text style={styles.monthLabel}>{MONTH_NAMES[viewMonth]} {viewYear}</Text>
+              <Text style={[typography.subheading, { color: colors.textPrimary }]}>{MONTH_NAMES[viewMonth]} {viewYear}</Text>
               <TouchableOpacity onPress={() => changeMonth(1)} style={styles.navButton}>
-                <Text style={styles.navText}>›</Text>
+                <Text style={[styles.navText, { color: colors.primary }]}>›</Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.weekRow}>
               {WEEKDAYS.map(w => (
-                <Text key={w} style={styles.weekdayLabel}>{w}</Text>
+                <Text key={w} style={[typography.small, { flex: 1, textAlign: 'center', color: colors.textMuted }]}>{w}</Text>
               ))}
             </View>
 
@@ -74,11 +83,17 @@ export default function DatePickerField({ placeholder, value, onChange, minDate,
                   <View key={idx} style={styles.cellWrapper}>
                     {day !== null && (
                       <TouchableOpacity
-                        style={[styles.dayCell, isSelected && styles.dayCellSelected]}
+                        style={[styles.dayCell, isSelected && { backgroundColor: colors.primary }]}
                         onPress={() => selectDay(day)}
                         disabled={!inRange}
                       >
-                        <Text style={[styles.dayText, isSelected && styles.dayTextSelected, !inRange && styles.dayTextDisabled]}>{day}</Text>
+                        <Text style={[
+                          typography.body,
+                          { color: isSelected ? colors.primaryText : inRange ? colors.textPrimary : colors.textMuted },
+                          isSelected && { fontWeight: '700' },
+                        ]}>
+                          {day}
+                        </Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -93,22 +108,14 @@ export default function DatePickerField({ placeholder, value, onChange, minDate,
 }
 
 const styles = StyleSheet.create({
-  input: { backgroundColor: '#fff', borderRadius: 8, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#ddd', justifyContent: 'center' },
-  valueText: { fontSize: 16, color: '#333' },
-  placeholderText: { fontSize: 16, color: '#999' },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  calendar: { backgroundColor: '#fff', borderRadius: 16, padding: 16, width: 320 },
+  input: { padding: 14, marginBottom: 12, borderWidth: StyleSheet.hairlineWidth, justifyContent: 'center' },
+  overlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  calendar: { padding: 16, width: 320 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   navButton: { padding: 8 },
-  navText: { fontSize: 22, color: '#2e7d32', fontWeight: '700' },
-  monthLabel: { fontSize: 16, fontWeight: '700', color: '#333' },
+  navText: { fontSize: 22, fontWeight: '700' },
   weekRow: { flexDirection: 'row', marginBottom: 4 },
-  weekdayLabel: { flex: 1, textAlign: 'center', fontSize: 12, color: '#888', fontWeight: '600' },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cellWrapper: { width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'center', justifyContent: 'center' },
   dayCell: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  dayCellSelected: { backgroundColor: '#2e7d32' },
-  dayText: { fontSize: 14, color: '#333' },
-  dayTextSelected: { color: '#fff', fontWeight: '700' },
-  dayTextDisabled: { color: '#ddd' },
 });

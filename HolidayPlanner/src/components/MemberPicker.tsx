@@ -1,5 +1,7 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { useTheme } from '../theme/ThemeContext';
+import Chip from './ui/Chip';
 
 interface Person {
   id: string;
@@ -15,24 +17,14 @@ interface Props {
 }
 
 export default function MemberPicker({ label, people, value, onChange, clearLabel = 'None' }: Props) {
+  const { colors, typography, spacing } = useTheme();
   return (
-    <View style={styles.container}>
-      <Text style={styles.label}>{label}</Text>
+    <View style={{ marginBottom: spacing.md }}>
+      <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.sm }]}>{label}</Text>
       <View style={styles.chipList}>
-        <TouchableOpacity
-          style={[styles.chip, !value && styles.chipSelected]}
-          onPress={() => onChange('')}
-        >
-          <Text style={!value ? styles.chipTextSelected : styles.chipText}>{clearLabel}</Text>
-        </TouchableOpacity>
+        <Chip label={clearLabel} selected={!value} onPress={() => onChange('')} />
         {people.map(p => (
-          <TouchableOpacity
-            key={p.id}
-            style={[styles.chip, value === p.name && styles.chipSelected]}
-            onPress={() => onChange(p.name)}
-          >
-            <Text style={value === p.name ? styles.chipTextSelected : styles.chipText}>{p.name}</Text>
-          </TouchableOpacity>
+          <Chip key={p.id} label={p.name} selected={value === p.name} onPress={() => onChange(p.name)} />
         ))}
       </View>
     </View>
@@ -40,11 +32,5 @@ export default function MemberPicker({ label, people, value, onChange, clearLabe
 }
 
 const styles = StyleSheet.create({
-  container: { marginBottom: 12 },
-  label: { fontSize: 13, color: '#666', marginBottom: 6 },
   chipList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { borderWidth: 1, borderColor: '#2e7d32', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
-  chipSelected: { backgroundColor: '#2e7d32' },
-  chipText: { color: '#2e7d32' },
-  chipTextSelected: { color: '#fff' },
 });

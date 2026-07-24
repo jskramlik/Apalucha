@@ -1,18 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../theme/ThemeContext';
 import { CleaningTask, Member, Child } from '../types';
 import DatePickerField from '../components/DatePickerField';
 import { showAlert, showConfirm } from '../utils/alert';
+import { Screen, Card, TextField, Button, Chip, EmptyState, BottomSheetModal } from '../components/ui';
 
 const TASK_TEMPLATE_KEYS = ['templateDishes', 'templateSweeping', 'templateMakingBeds', 'templateTrash', 'templateBathroom'] as const;
 
 export default function CleaningScreen() {
   const { t } = useTranslation();
   const { holidayId } = useAuth();
+  const { colors, spacing, typography } = useTheme();
   const [tasks, setTasks] = useState<CleaningTask[]>([]);
   const [members, setMembers] = useState<(Member | Child)[]>([]);
   const [minDate, setMinDate] = useState<string | undefined>();
@@ -75,87 +78,57 @@ export default function CleaningScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <Screen>
       <FlatList
         data={tasks}
         keyExtractor={i => i.id}
         renderItem={({ item }) => (
-          <TouchableOpacity style={[styles.card, item.done && styles.cardDone]} onPress={() => toggleDone(item)} onLongPress={() => handleDelete(item.id)}>
-            <Text style={styles.check}>{item.done ? '✅' : '⬜'}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.taskText, item.done && styles.taskDone]}>{item.task}</Text>
-              <Text style={styles.sub}>📅 {item.date} · 👤 {item.assignedTo}</Text>
-            </View>
+          <TouchableOpacity onPress={() => toggleDone(item)} onLongPress={() => handleDelete(item.id)}>
+            <Card style={[styles.card, item.done && { opacity: 0.6 }]}>
+              <Text style={{ fontSize: 20, marginRight: 12 }}>{item.done ? '✅' : '⬜'}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[typography.subheading, { color: colors.textPrimary }, item.done && styles.taskDone]}>{item.task}</Text>
+                <Text style={[typography.small, { color: colors.textMuted, marginTop: 2 }]}>📅 {item.date} · 👤 {item.assignedTo}</Text>
+              </View>
+            </Card>
           </TouchableOpacity>
         )}
-        contentContainerStyle={{ padding: 12 }}
-        ListEmptyComponent={<Text style={styles.empty}>{t('noCleaning')}</Text>}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110 }}
+        ListEmptyComponent={<EmptyState icon="brush-outline" text={t('noCleaning')} />}
       />
-      <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
-        <Text style={styles.fabText}>+</Text>
+      <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={() => setModalVisible(true)}>
+        <Text style={[styles.fabText, { color: colors.primaryText }]}>+</Text>
       </TouchableOpacity>
 
-      <Modal visible={modalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modal}>
-            <Text style={styles.modalTitle}>{t('addCleaningTask')}</Text>
-            <View style={styles.templateRow}>
-              {TASK_TEMPLATE_KEYS.map(key => (
-                <TouchableOpacity key={key} style={styles.templateChip} onPress={() => setTask(t(key))}>
-                  <Text style={styles.templateChipText}>{t(key)}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <TextInput style={styles.input} placeholder={t('task')} value={task} onChangeText={setTask} />
-            <DatePickerField placeholder={t('date')} value={date} onChange={setDate} minDate={minDate} maxDate={maxDate} />
-            <Text style={styles.label}>{t('assignedTo')}:</Text>
-            <View style={styles.memberList}>
-              {members.map(m => (
-                <TouchableOpacity
-                  key={m.id}
-                  style={[styles.memberChip, assignedTo === m.name && styles.memberChipSelected]}
-                  onPress={() => setAssignedTo(m.name)}
-                >
-                  <Text style={assignedTo === m.name ? styles.memberChipTextSelected : styles.memberChipText}>{m.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <View style={styles.row}>
-              <TouchableOpacity style={styles.btnCancel} onPress={() => setModalVisible(false)}><Text>{t('cancel')}</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.btnSave} onPress={handleAdd}><Text style={{ color: '#fff' }}>{t('save')}</Text></TouchableOpacity>
-            </View>
-          </View>
+      <BottomSheetModal visible={modalVisible} onClose={() => setModalVisible(false)}>
+        <Text style={[typography.heading, { color: colors.textPrimary, marginBottom: spacing.lg }]}>{t('addCleaningTask')}</Text>
+        <View style={styles.templateRow}>
+          {TASK_TEMPLATE_KEYS.map(key => (
+            <Chip key={key} label={t(key)} selected={task === t(key)} onPress={() => setTask(t(key))} />
+          ))}
         </View>
-      </Modal>
-    </View>
+        <TextField placeholder={t('task')} value={task} onChangeText={setTask} />
+        <DatePickerField placeholder={t('date')} value={date} onChange={setDate} minDate={minDate} maxDate={maxDate} />
+        <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: spacing.sm }]}>{t('assignedTo')}:</Text>
+        <View style={styles.templateRow}>
+          {members.map(m => (
+            <Chip key={m.id} label={m.name} selected={assignedTo === m.name} onPress={() => setAssignedTo(m.name)} />
+          ))}
+        </View>
+        <View style={styles.row}>
+          <Button label={t('cancel')} variant="ghost" onPress={() => setModalVisible(false)} />
+          <Button label={t('save')} onPress={handleAdd} />
+        </View>
+      </BottomSheetModal>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 8, elevation: 2 },
-  cardDone: { opacity: 0.6 },
-  check: { fontSize: 20, marginRight: 12 },
-  taskText: { fontSize: 15, color: '#333', fontWeight: '600' },
-  taskDone: { textDecorationLine: 'line-through', color: '#aaa' },
-  sub: { fontSize: 12, color: '#888', marginTop: 2 },
-  empty: { textAlign: 'center', color: '#aaa', marginTop: 40, fontStyle: 'italic' },
-  fab: { position: 'absolute', bottom: 24, right: 24, backgroundColor: '#2e7d32', width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 4 },
-  fabText: { color: '#fff', fontSize: 28, lineHeight: 32 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24 },
-  modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 16, color: '#333' },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 10, fontSize: 15 },
-  label: { fontSize: 14, color: '#666', marginBottom: 8 },
+  card: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  taskDone: { textDecorationLine: 'line-through' },
+  fab: { position: 'absolute', bottom: 100, right: 24, width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 4 },
+  fabText: { fontSize: 28, lineHeight: 32 },
   templateRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  templateChip: { backgroundColor: '#e8f5e9', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
-  templateChipText: { color: '#2e7d32', fontSize: 13, fontWeight: '600' },
-  memberList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  memberChip: { borderWidth: 1, borderColor: '#2e7d32', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
-  memberChipSelected: { backgroundColor: '#2e7d32' },
-  memberChipText: { color: '#2e7d32' },
-  memberChipTextSelected: { color: '#fff' },
   row: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 8 },
-  btnCancel: { padding: 12 },
-  btnSave: { backgroundColor: '#2e7d32', borderRadius: 8, paddingHorizontal: 20, paddingVertical: 12 },
 });

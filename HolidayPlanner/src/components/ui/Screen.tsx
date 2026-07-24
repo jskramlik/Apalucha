@@ -1,10 +1,10 @@
 import React from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
+import { View, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { useTheme } from '../../theme/ThemeContext';
 
 interface Props {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export default function Screen({ children, style }: Props) {

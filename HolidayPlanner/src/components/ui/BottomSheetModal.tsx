@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View, TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
+import { Modal, View, TouchableOpacity, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useTheme } from '../../theme/ThemeContext';
 
@@ -7,7 +7,7 @@ interface Props {
   visible: boolean;
   onClose: () => void;
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export default function BottomSheetModal({ visible, onClose, children, style }: Props) {

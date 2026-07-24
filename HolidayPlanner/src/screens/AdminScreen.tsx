@@ -1,16 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { collection, onSnapshot, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../theme/ThemeContext';
 import { Member } from '../types';
 import { showAlert, showConfirm } from '../utils/alert';
 import DatePickerField from '../components/DatePickerField';
+import { Screen, Card, TextField, Button, Avatar } from '../components/ui';
 
 export default function AdminScreen() {
   const { t } = useTranslation();
   const { holidayId, member } = useAuth();
+  const { colors, spacing, typography } = useTheme();
   const [members, setMembers] = useState<Member[]>([]);
   const [inviteCode, setInviteCode] = useState('');
   const [name, setName] = useState('');
@@ -35,7 +38,7 @@ export default function AdminScreen() {
   }, [holidayId]);
 
   if (member?.role !== 'admin') {
-    return <View style={styles.center}><Text>Access denied</Text></View>;
+    return <Screen><View style={styles.center}><Text style={{ color: colors.textPrimary }}>Access denied</Text></View></Screen>;
   }
 
   const handleRemoveMember = (m: Member) => {
@@ -64,67 +67,52 @@ export default function AdminScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <Screen>
       <FlatList
         data={members}
         keyExtractor={i => i.id}
         ListHeaderComponent={
           <>
-            <View style={styles.codeCard}>
-              <Text style={styles.codeLabel}>Invite Code</Text>
+            <Card style={[styles.codeCard, { backgroundColor: colors.primary }]}>
+              <Text style={[typography.small, { color: colors.primaryText, opacity: 0.8 }]}>Invite Code</Text>
               <Text style={styles.code}>{inviteCode}</Text>
-              <Text style={styles.codeHint}>Share this code with other dads to join</Text>
-            </View>
+              <Text style={[typography.small, { color: colors.primaryText, opacity: 0.8, marginTop: spacing.sm }]}>Share this code with other dads to join</Text>
+            </Card>
 
-            <View style={styles.editSection}>
-              <Text style={styles.sectionTitle}>{t('editApalucha')}</Text>
-              <TextInput style={styles.input} placeholder={t('holidayName')} value={name} onChangeText={setName} />
+            <Card style={{ marginBottom: spacing.lg }}>
+              <Text style={[typography.heading, { color: colors.textPrimary, marginBottom: spacing.md }]}>{t('editApalucha')}</Text>
+              <TextField placeholder={t('holidayName')} value={name} onChangeText={setName} />
               <DatePickerField placeholder={t('startDate')} value={startDate} onChange={setStartDate} />
               <DatePickerField placeholder={t('endDate')} value={endDate} onChange={setEndDate} />
-              <TouchableOpacity style={styles.saveButton} onPress={handleSaveApalucha} disabled={saving}>
-                <Text style={styles.saveButtonText}>{saving ? '...' : t('save')}</Text>
-              </TouchableOpacity>
-            </View>
+              <Button label={saving ? '...' : t('save')} onPress={handleSaveApalucha} disabled={saving} style={{ marginTop: spacing.xs }} />
+            </Card>
 
-            <Text style={styles.sectionTitle}>{t('members')}</Text>
+            <Text style={[typography.heading, { color: colors.textPrimary, marginBottom: spacing.sm }]}>{t('members')}</Text>
           </>
         }
         renderItem={({ item }) => (
-          <View style={styles.row}>
-            <View style={styles.avatarSmall}><Text style={styles.avatarLetter}>{(item.name?.[0] ?? '?').toUpperCase()}</Text></View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{item.name}</Text>
-              <Text style={styles.role}>{item.role}</Text>
+          <Card style={styles.row}>
+            <Avatar name={item.name} size={40} />
+            <View style={{ flex: 1, marginLeft: spacing.md }}>
+              <Text style={[typography.subheading, { color: colors.textPrimary }]}>{item.name}</Text>
+              <Text style={[typography.small, { color: colors.textMuted }]}>{item.role}</Text>
             </View>
             {item.role !== 'admin' && (
               <TouchableOpacity onPress={() => handleRemoveMember(item)}>
-                <Text style={styles.remove}>Remove</Text>
+                <Text style={[typography.caption, { color: colors.error }]}>Remove</Text>
               </TouchableOpacity>
             )}
-          </View>
+          </Card>
         )}
-        contentContainerStyle={{ padding: 12 }}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110 }}
       />
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  codeCard: { marginBottom: 12, backgroundColor: '#2e7d32', borderRadius: 16, padding: 20, alignItems: 'center' },
-  codeLabel: { color: '#a5d6a7', fontSize: 13, marginBottom: 6 },
+  codeCard: { marginBottom: 12, alignItems: 'center' },
   code: { color: '#fff', fontSize: 32, fontWeight: 'bold', letterSpacing: 6 },
-  codeHint: { color: '#a5d6a7', fontSize: 12, marginTop: 8 },
-  editSection: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 16 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#333', marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 10, fontSize: 15 },
-  saveButton: { backgroundColor: '#2e7d32', borderRadius: 8, padding: 12, alignItems: 'center', marginTop: 4 },
-  saveButtonText: { color: '#fff', fontWeight: '600' },
-  row: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 8, elevation: 1 },
-  avatarSmall: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#2e7d32', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  avatarLetter: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  name: { fontSize: 15, fontWeight: '600', color: '#333' },
-  role: { fontSize: 12, color: '#888' },
-  remove: { color: '#c62828', fontSize: 13, fontWeight: '600' },
+  row: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
 });

@@ -1,19 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { doc, setDoc, deleteDoc, onSnapshot, collection, getDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../theme/ThemeContext';
 import { Meal, Member, Child } from '../types';
 import DatePickerField from '../components/DatePickerField';
 import MemberPicker from '../components/MemberPicker';
 import { showAlert, showConfirm } from '../utils/alert';
+import { Screen, Card, TextField, Button, EmptyState, BottomSheetModal } from '../components/ui';
 
 type Participant = (Member | Child) & { id: string };
 
 export default function MealPlanScreen() {
   const { t } = useTranslation();
   const { holidayId } = useAuth();
+  const { colors, spacing, radius, typography } = useTheme();
   const [meals, setMeals] = useState<Meal[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [minDate, setMinDate] = useState<string | undefined>();
@@ -93,65 +96,62 @@ export default function MealPlanScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={{ padding: 12 }}>
-        {meals.length === 0 && <Text style={styles.empty}>{t('noMeals')}</Text>}
+    <Screen>
+      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110 }}>
+        {meals.length === 0 && <EmptyState icon="restaurant-outline" text={t('noMeals')} />}
         {meals.map(m => (
-          <TouchableOpacity key={m.date} style={styles.card} onPress={() => openEdit(m)}>
-            <View style={styles.dateTag}><Text style={styles.dateText}>{m.date}</Text></View>
-            {m.breakfast && <Text style={styles.mealRow}>🌅 {m.breakfast} {m.breakfastCook && <Text style={styles.cookInline}>· 👨‍🍳 {m.breakfastCook}</Text>}</Text>}
-            {m.lunch && <Text style={styles.mealRow}>☀️ {m.lunch} {m.lunchCook && <Text style={styles.cookInline}>· 👨‍🍳 {m.lunchCook}</Text>}</Text>}
-            {m.dinner && <Text style={styles.mealRow}>🌙 {m.dinner} {m.dinnerCook && <Text style={styles.cookInline}>· 👨‍🍳 {m.dinnerCook}</Text>}</Text>}
+          <TouchableOpacity key={m.date} onPress={() => openEdit(m)}>
+            <Card style={{ marginBottom: spacing.md }}>
+              <View style={[styles.dateTag, { backgroundColor: colors.secondary + '22', borderRadius: radius.sm }]}>
+                <Text style={[typography.small, { color: colors.secondary }]}>{m.date}</Text>
+              </View>
+              {m.breakfast && (
+                <Text style={[typography.body, { color: colors.textPrimary, marginBottom: 2 }]}>
+                  🌅 {m.breakfast} {m.breakfastCook && <Text style={[typography.small, { color: colors.textMuted }]}>· 👨‍🍳 {m.breakfastCook}</Text>}
+                </Text>
+              )}
+              {m.lunch && (
+                <Text style={[typography.body, { color: colors.textPrimary, marginBottom: 2 }]}>
+                  ☀️ {m.lunch} {m.lunchCook && <Text style={[typography.small, { color: colors.textMuted }]}>· 👨‍🍳 {m.lunchCook}</Text>}
+                </Text>
+              )}
+              {m.dinner && (
+                <Text style={[typography.body, { color: colors.textPrimary }]}>
+                  🌙 {m.dinner} {m.dinnerCook && <Text style={[typography.small, { color: colors.textMuted }]}>· 👨‍🍳 {m.dinnerCook}</Text>}
+                </Text>
+              )}
+            </Card>
           </TouchableOpacity>
         ))}
       </ScrollView>
-      <TouchableOpacity style={styles.fab} onPress={() => openEdit()}>
-        <Text style={styles.fabText}>+</Text>
+      <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={() => openEdit()}>
+        <Text style={[styles.fabText, { color: colors.primaryText }]}>+</Text>
       </TouchableOpacity>
 
-      <Modal visible={modalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modal}>
-            <ScrollView>
-              <Text style={styles.modalTitle}>{t('addMeal')}</Text>
-              <DatePickerField placeholder={t('date')} value={selectedDate} onChange={setSelectedDate} minDate={minDate} maxDate={maxDate} />
-              <TextInput style={styles.input} placeholder={t('breakfast')} value={breakfast} onChangeText={setBreakfast} />
-              <MemberPicker label={t('breakfastCook')} people={participants} value={breakfastCook} onChange={setBreakfastCook} />
-              <TextInput style={styles.input} placeholder={t('lunch')} value={lunch} onChangeText={setLunch} />
-              <MemberPicker label={t('lunchCook')} people={participants} value={lunchCook} onChange={setLunchCook} />
-              <TextInput style={styles.input} placeholder={t('dinner')} value={dinner} onChangeText={setDinner} />
-              <MemberPicker label={t('dinnerCook')} people={participants} value={dinnerCook} onChange={setDinnerCook} />
-              <View style={styles.btnRow}>
-                {isEditing && (
-                  <TouchableOpacity style={styles.btnDelete} onPress={handleDelete}><Text style={{ color: '#c62828' }}>{t('removeDay')}</Text></TouchableOpacity>
-                )}
-                <TouchableOpacity style={styles.btnCancel} onPress={() => setModalVisible(false)}><Text>{t('cancel')}</Text></TouchableOpacity>
-                <TouchableOpacity style={styles.btnSave} onPress={handleSave}><Text style={{ color: '#fff' }}>{t('save')}</Text></TouchableOpacity>
-              </View>
-            </ScrollView>
+      <BottomSheetModal visible={modalVisible} onClose={() => setModalVisible(false)}>
+        <ScrollView>
+          <Text style={[typography.heading, { color: colors.textPrimary, marginBottom: spacing.lg }]}>{t('addMeal')}</Text>
+          <DatePickerField placeholder={t('date')} value={selectedDate} onChange={setSelectedDate} minDate={minDate} maxDate={maxDate} />
+          <TextField placeholder={t('breakfast')} value={breakfast} onChangeText={setBreakfast} />
+          <MemberPicker label={t('breakfastCook')} people={participants} value={breakfastCook} onChange={setBreakfastCook} />
+          <TextField placeholder={t('lunch')} value={lunch} onChangeText={setLunch} />
+          <MemberPicker label={t('lunchCook')} people={participants} value={lunchCook} onChange={setLunchCook} />
+          <TextField placeholder={t('dinner')} value={dinner} onChangeText={setDinner} />
+          <MemberPicker label={t('dinnerCook')} people={participants} value={dinnerCook} onChange={setDinnerCook} />
+          <View style={styles.btnRow}>
+            {isEditing && <Button label={t('removeDay')} variant="ghost" onPress={handleDelete} />}
+            <Button label={t('cancel')} variant="ghost" onPress={() => setModalVisible(false)} />
+            <Button label={t('save')} onPress={handleSave} />
           </View>
-        </View>
-      </Modal>
-    </View>
+        </ScrollView>
+      </BottomSheetModal>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 10, elevation: 2 },
-  dateTag: { backgroundColor: '#e8f5e9', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start', marginBottom: 8 },
-  dateText: { color: '#2e7d32', fontSize: 12, fontWeight: '600' },
-  mealRow: { fontSize: 15, color: '#333', marginBottom: 2 },
-  cookInline: { fontSize: 12, color: '#888' },
-  empty: { textAlign: 'center', color: '#aaa', marginTop: 40, fontStyle: 'italic' },
-  fab: { position: 'absolute', bottom: 24, right: 24, backgroundColor: '#2e7d32', width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 4 },
-  fabText: { color: '#fff', fontSize: 28, lineHeight: 32 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, maxHeight: '85%' },
-  modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 16, color: '#333' },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 10, fontSize: 15 },
+  dateTag: { paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start', marginBottom: 8 },
+  fab: { position: 'absolute', bottom: 100, right: 24, width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 4 },
+  fabText: { fontSize: 28, lineHeight: 32 },
   btnRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 8, flexWrap: 'wrap' },
-  btnCancel: { padding: 12 },
-  btnDelete: { padding: 12 },
-  btnSave: { backgroundColor: '#2e7d32', borderRadius: 8, paddingHorizontal: 20, paddingVertical: 12 },
 });

@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView } from 'react-native';
 import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../theme/ThemeContext';
 import { Competition, Member, Child, Guest } from '../types';
 import { showAlert, showConfirm } from '../utils/alert';
+import { Screen, Card, TextField, Button, Chip, Badge, EmptyState, BottomSheetModal } from '../components/ui';
 
 function generateGuestId() {
   return `guest_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -14,6 +16,7 @@ function generateGuestId() {
 export default function CompetitionsScreen() {
   const { t } = useTranslation();
   const { holidayId } = useAuth();
+  const { colors, spacing, typography } = useTheme();
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [members, setMembers] = useState<(Member | Child)[]>([]);
   const [addModalVisible, setAddModalVisible] = useState(false);
@@ -133,154 +136,111 @@ export default function CompetitionsScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <Screen>
       <FlatList
         data={competitions}
         keyExtractor={i => i.id}
         renderItem={({ item }) => (
-          <View style={styles.card}>
+          <Card style={{ marginBottom: spacing.md }}>
             <TouchableOpacity onPress={() => openScores(item)}>
-              <Text style={styles.cardTitle}>🏆 {item.name}</Text>
-              {item.description && <Text style={styles.cardSub}>{item.description}</Text>}
+              <Text style={[typography.subheading, { color: colors.textPrimary }]}>🏆 {item.name}</Text>
+              {item.description && <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>{item.description}</Text>}
               <View style={styles.badgeRow}>
-                {item.type === 'team' && <Text style={styles.badge}>🤝 Team</Text>}
-                {item.lowestWins && <Text style={styles.badge}>🔻 Lowest wins</Text>}
+                {item.type === 'team' && <Badge label="🤝 Team" tone="secondary" />}
+                {item.lowestWins && <Badge label="🔻 Lowest wins" tone="muted" />}
               </View>
-              <Text style={styles.tapHint}>Tap to enter scores</Text>
+              <Text style={[typography.small, { color: colors.textMuted, marginTop: spacing.sm, fontStyle: 'italic' }]}>Tap to enter scores</Text>
             </TouchableOpacity>
             <View style={styles.cardActionsRow}>
-              <TouchableOpacity onPress={() => openEditComp(item)} style={styles.deleteBtn}>
-                <Text style={styles.editText}>✏️ {t('edit')}</Text>
+              <TouchableOpacity onPress={() => openEditComp(item)}>
+                <Text style={[typography.caption, { color: colors.primary }]}>✏️ {t('edit')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.deleteBtn}>
-                <Text style={styles.deleteText}>🗑 {t('delete')}</Text>
+              <TouchableOpacity onPress={() => handleDelete(item.id)}>
+                <Text style={[typography.caption, { color: colors.error }]}>🗑 {t('delete')}</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </Card>
         )}
-        contentContainerStyle={{ padding: 12 }}
-        ListEmptyComponent={<Text style={styles.empty}>{t('noCompetitions')}</Text>}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110 }}
+        ListEmptyComponent={<EmptyState icon="trophy-outline" text={t('noCompetitions')} />}
       />
-      <TouchableOpacity style={styles.fab} onPress={openAdd}>
-        <Text style={styles.fabText}>+</Text>
+      <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={openAdd}>
+        <Text style={[styles.fabText, { color: colors.primaryText }]}>+</Text>
       </TouchableOpacity>
 
-      <Modal visible={addModalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modal}>
-            <Text style={styles.modalTitle}>{editingCompId ? t('edit') : t('addCompetition')}</Text>
-            <TextInput style={styles.input} placeholder={t('name')} value={name} onChangeText={setName} />
-            <TextInput style={styles.input} placeholder={t('description')} value={description} onChangeText={setDescription} />
-            <View style={styles.toggleRow}>
-              <TouchableOpacity style={[styles.toggleBtn, type === 'individual' && styles.toggleBtnSelected]} onPress={() => setType('individual')}>
-                <Text style={type === 'individual' ? styles.toggleTextSelected : styles.toggleText}>Individual</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.toggleBtn, type === 'team' && styles.toggleBtnSelected]} onPress={() => setType('team')}>
-                <Text style={type === 'team' ? styles.toggleTextSelected : styles.toggleText}>Team</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.toggleRow}>
-              <TouchableOpacity style={[styles.toggleBtn, !lowestWins && styles.toggleBtnSelected]} onPress={() => setLowestWins(false)}>
-                <Text style={!lowestWins ? styles.toggleTextSelected : styles.toggleText}>Highest wins</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.toggleBtn, lowestWins && styles.toggleBtnSelected]} onPress={() => setLowestWins(true)}>
-                <Text style={lowestWins ? styles.toggleTextSelected : styles.toggleText}>Lowest wins</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.row}>
-              <TouchableOpacity style={styles.btnCancel} onPress={() => setAddModalVisible(false)}><Text>{t('cancel')}</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.btnSave} onPress={handleSaveCompetition}><Text style={{ color: '#fff' }}>{t('save')}</Text></TouchableOpacity>
-            </View>
-          </View>
+      <BottomSheetModal visible={addModalVisible} onClose={() => setAddModalVisible(false)}>
+        <Text style={[typography.heading, { color: colors.textPrimary, marginBottom: spacing.lg }]}>{editingCompId ? t('edit') : t('addCompetition')}</Text>
+        <TextField placeholder={t('name')} value={name} onChangeText={setName} />
+        <TextField placeholder={t('description')} value={description} onChangeText={setDescription} />
+        <View style={styles.toggleRow}>
+          <Chip label="Individual" selected={type === 'individual'} onPress={() => setType('individual')} />
+          <Chip label="Team" selected={type === 'team'} onPress={() => setType('team')} />
         </View>
-      </Modal>
+        <View style={styles.toggleRow}>
+          <Chip label="Highest wins" selected={!lowestWins} onPress={() => setLowestWins(false)} />
+          <Chip label="Lowest wins" selected={lowestWins} onPress={() => setLowestWins(true)} />
+        </View>
+        <View style={styles.row}>
+          <Button label={t('cancel')} variant="ghost" onPress={() => setAddModalVisible(false)} />
+          <Button label={t('save')} onPress={handleSaveCompetition} />
+        </View>
+      </BottomSheetModal>
 
-      <Modal visible={scoreModalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modal}>
-            <Text style={styles.modalTitle}>{t('enterScore')}: {selectedComp?.name}</Text>
-            <ScrollView style={{ maxHeight: 300 }}>
-              {members.map(m => (
-                <View key={m.id} style={styles.scoreRow}>
-                  <Text style={styles.scoreName}>{m.name}</Text>
-                  <TextInput
-                    style={styles.scoreInput}
-                    keyboardType="numeric"
-                    value={scores[m.id] ?? '0'}
-                    onChangeText={v => setScores(prev => ({ ...prev, [m.id]: v }))}
-                  />
-                </View>
-              ))}
-              {guests.map(g => (
-                <View key={g.id} style={styles.scoreRow}>
-                  <Text style={styles.scoreName}>{g.name} <Text style={styles.guestTag}>(guest)</Text></Text>
-                  <TextInput
-                    style={styles.scoreInput}
-                    keyboardType="numeric"
-                    value={scores[g.id] ?? '0'}
-                    onChangeText={v => setScores(prev => ({ ...prev, [g.id]: v }))}
-                  />
-                  <TouchableOpacity onPress={() => handleRemoveGuest(g.id)} style={styles.removeGuestBtn}>
-                    <Text style={styles.removeGuestText}>×</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </ScrollView>
-            <View style={styles.addGuestRow}>
-              <TextInput
-                style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                placeholder={t('guestName')}
-                value={newGuestName}
-                onChangeText={setNewGuestName}
+      <BottomSheetModal visible={scoreModalVisible} onClose={() => setScoreModalVisible(false)}>
+        <Text style={[typography.heading, { color: colors.textPrimary, marginBottom: spacing.lg }]}>{t('enterScore')}: {selectedComp?.name}</Text>
+        <ScrollView style={{ maxHeight: 300 }}>
+          {members.map(m => (
+            <View key={m.id} style={styles.scoreRow}>
+              <Text style={[typography.body, { color: colors.textPrimary, flex: 1 }]}>{m.name}</Text>
+              <TextField
+                style={styles.scoreInput}
+                keyboardType="numeric"
+                value={scores[m.id] ?? '0'}
+                onChangeText={v => setScores(prev => ({ ...prev, [m.id]: v }))}
               />
-              <TouchableOpacity style={styles.addGuestBtn} onPress={handleAddGuest}>
-                <Text style={{ color: '#fff', fontWeight: '600' }}>{t('addGuest')}</Text>
+            </View>
+          ))}
+          {guests.map(g => (
+            <View key={g.id} style={styles.scoreRow}>
+              <Text style={[typography.body, { color: colors.textPrimary, flex: 1 }]}>{g.name} <Text style={[typography.small, { color: colors.textMuted, fontStyle: 'italic' }]}>(guest)</Text></Text>
+              <TextField
+                style={styles.scoreInput}
+                keyboardType="numeric"
+                value={scores[g.id] ?? '0'}
+                onChangeText={v => setScores(prev => ({ ...prev, [g.id]: v }))}
+              />
+              <TouchableOpacity onPress={() => handleRemoveGuest(g.id)} style={{ marginLeft: spacing.sm, padding: 4 }}>
+                <Text style={{ fontSize: 18, color: colors.error, fontWeight: '700' }}>×</Text>
               </TouchableOpacity>
             </View>
-            <View style={styles.row}>
-              <TouchableOpacity style={styles.btnCancel} onPress={() => setScoreModalVisible(false)}><Text>{t('cancel')}</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.btnSave} onPress={handleSaveScores}><Text style={{ color: '#fff' }}>{t('save')}</Text></TouchableOpacity>
-            </View>
-          </View>
+          ))}
+        </ScrollView>
+        <View style={styles.addGuestRow}>
+          <TextField
+            style={{ flex: 1, marginBottom: 0 }}
+            placeholder={t('guestName')}
+            value={newGuestName}
+            onChangeText={setNewGuestName}
+          />
+          <Button label={t('addGuest')} onPress={handleAddGuest} />
         </View>
-      </Modal>
-    </View>
+        <View style={styles.row}>
+          <Button label={t('cancel')} variant="ghost" onPress={() => setScoreModalVisible(false)} />
+          <Button label={t('save')} onPress={handleSaveScores} />
+        </View>
+      </BottomSheetModal>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 10, elevation: 2 },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: '#333' },
-  cardSub: { fontSize: 13, color: '#666', marginTop: 2 },
-  tapHint: { fontSize: 12, color: '#aaa', marginTop: 6, fontStyle: 'italic' },
-  empty: { textAlign: 'center', color: '#aaa', marginTop: 40, fontStyle: 'italic' },
-  fab: { position: 'absolute', bottom: 24, right: 24, backgroundColor: '#2e7d32', width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 4 },
-  fabText: { color: '#fff', fontSize: 28, lineHeight: 32 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24 },
-  modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 16, color: '#333' },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 10, fontSize: 15 },
+  fab: { position: 'absolute', bottom: 100, right: 24, width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 4 },
+  fabText: { fontSize: 28, lineHeight: 32 },
   row: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 8 },
-  btnCancel: { padding: 12 },
-  btnSave: { backgroundColor: '#2e7d32', borderRadius: 8, paddingHorizontal: 20, paddingVertical: 12 },
   scoreRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  scoreName: { fontSize: 15, color: '#333', flex: 1 },
-  scoreInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 8, width: 80, textAlign: 'center', fontSize: 15 },
-  guestTag: { fontSize: 12, color: '#aaa', fontStyle: 'italic' },
-  removeGuestBtn: { marginLeft: 8, padding: 4 },
-  removeGuestText: { fontSize: 18, color: '#c62828', fontWeight: '700' },
+  scoreInput: { width: 80, textAlign: 'center', marginBottom: 0 },
   addGuestRow: { flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 8 },
-  addGuestBtn: { backgroundColor: '#2e7d32', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 12 },
   badgeRow: { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
-  badge: { fontSize: 11, color: '#2e7d32', backgroundColor: '#e8f5e9', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, fontWeight: '600' },
   cardActionsRow: { flexDirection: 'row', gap: 16, marginTop: 10 },
-  deleteBtn: {},
-  deleteText: { fontSize: 12, color: '#c62828', fontWeight: '600' },
-  editText: { fontSize: 12, color: '#2e7d32', fontWeight: '600' },
   toggleRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  toggleBtn: { flex: 1, borderWidth: 1, borderColor: '#2e7d32', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
-  toggleBtnSelected: { backgroundColor: '#2e7d32' },
-  toggleText: { color: '#2e7d32', fontWeight: '600' },
-  toggleTextSelected: { color: '#fff', fontWeight: '600' },
 });

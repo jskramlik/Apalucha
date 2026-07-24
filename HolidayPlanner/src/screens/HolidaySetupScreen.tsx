@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { collection, doc, setDoc, query, where, getDocs } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import { auth, db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../theme/ThemeContext';
 import DatePickerField from '../components/DatePickerField';
 import { showAlert } from '../utils/alert';
+import { Screen, TextField, Button, Chip } from '../components/ui';
 
 function generateCode() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -16,6 +18,7 @@ export default function HolidaySetupScreen() {
   const { t } = useTranslation();
   const { setHolidayId } = useAuth();
   const navigation = useNavigation();
+  const { colors, spacing, typography } = useTheme();
   const [tab, setTab] = useState<'create' | 'join'>('create');
   const [name, setName] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -101,48 +104,33 @@ export default function HolidaySetupScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>🏕️ Apalucha Planner</Text>
+    <Screen style={{ justifyContent: 'center', padding: spacing.xxl }}>
+      <Text style={[typography.title, { color: colors.primary, textAlign: 'center', marginBottom: spacing.xxl }]}>
+        🏕️ Apalucha Planner
+      </Text>
       <View style={styles.tabs}>
-        <TouchableOpacity style={[styles.tab, tab === 'create' && styles.activeTab]} onPress={() => setTab('create')}>
-          <Text style={[styles.tabText, tab === 'create' && styles.activeTabText]}>{t('createHoliday')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.tab, tab === 'join' && styles.activeTab]} onPress={() => setTab('join')}>
-          <Text style={[styles.tabText, tab === 'join' && styles.activeTabText]}>{t('joinHoliday')}</Text>
-        </TouchableOpacity>
+        <Chip label={t('createHoliday')} selected={tab === 'create'} onPress={() => setTab('create')} />
+        <Chip label={t('joinHoliday')} selected={tab === 'join'} onPress={() => setTab('join')} />
       </View>
 
       {tab === 'create' ? (
         <>
-          <TextInput style={styles.input} placeholder={t('name')} value={displayName} onChangeText={setDisplayName} />
-          <TextInput style={styles.input} placeholder={t('holidayName')} value={name} onChangeText={setName} />
+          <TextField placeholder={t('name')} value={displayName} onChangeText={setDisplayName} />
+          <TextField placeholder={t('holidayName')} value={name} onChangeText={setName} />
           <DatePickerField placeholder={t('startDate')} value={startDate} onChange={setStartDate} />
           <DatePickerField placeholder={t('endDate')} value={endDate} onChange={setEndDate} />
-          <TouchableOpacity style={styles.button} onPress={handleCreate} disabled={loading}>
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{t('createHoliday')}</Text>}
-          </TouchableOpacity>
+          <Button label={t('createHoliday')} onPress={handleCreate} loading={loading} style={{ marginTop: spacing.sm }} />
         </>
       ) : (
         <>
-          <TextInput style={styles.input} placeholder={t('inviteCode')} value={inviteCode} onChangeText={setInviteCode} autoCapitalize="characters" />
-          <TouchableOpacity style={styles.button} onPress={handleJoin} disabled={loading}>
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{t('joinHoliday')}</Text>}
-          </TouchableOpacity>
+          <TextField placeholder={t('inviteCode')} value={inviteCode} onChangeText={setInviteCode} autoCapitalize="characters" />
+          <Button label={t('joinHoliday')} onPress={handleJoin} loading={loading} style={{ marginTop: spacing.sm }} />
         </>
       )}
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#f5f5f5' },
-  title: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 24, color: '#2e7d32' },
-  tabs: { flexDirection: 'row', marginBottom: 20, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: '#2e7d32' },
-  tab: { flex: 1, padding: 12, alignItems: 'center', backgroundColor: '#fff' },
-  activeTab: { backgroundColor: '#2e7d32' },
-  tabText: { color: '#2e7d32', fontWeight: '600' },
-  activeTabText: { color: '#fff' },
-  input: { backgroundColor: '#fff', borderRadius: 8, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#ddd', fontSize: 16 },
-  button: { backgroundColor: '#2e7d32', borderRadius: 8, padding: 16, alignItems: 'center', marginTop: 8 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  tabs: { flexDirection: 'row', gap: 8, marginBottom: 20, justifyContent: 'center' },
 });

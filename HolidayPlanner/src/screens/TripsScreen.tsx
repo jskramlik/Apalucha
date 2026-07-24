@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, Linking, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Linking, ScrollView, Image } from 'react-native';
 import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../theme/ThemeContext';
 import { Trip, TripStop, Member, Child } from '../types';
 import DatePickerField from '../components/DatePickerField';
 import { showAlert, showConfirm } from '../utils/alert';
 import { geocodeLocation } from '../utils/geocode';
 import { getRouteInfo } from '../utils/routing';
+import { Screen, Card, TextField, Button, EmptyState, BottomSheetModal } from '../components/ui';
 
 type Participant = (Member | Child) & { id: string };
 
@@ -34,6 +36,7 @@ function getTripStops(trip: Trip): TripStop[] {
 export default function TripsScreen() {
   const { t } = useTranslation();
   const { holidayId } = useAuth();
+  const { colors, spacing, radius, typography } = useTheme();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [minDate, setMinDate] = useState<string | undefined>();
@@ -172,174 +175,137 @@ export default function TripsScreen() {
   const goingCount = (trip: Trip) => Object.values(trip.rsvp ?? {}).filter(Boolean).length;
 
   return (
-    <View style={styles.container}>
+    <Screen>
       <FlatList
         data={trips}
         keyExtractor={i => i.id}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.card} onPress={() => setDetailsTrip(item)}>
-            <View style={styles.dateTag}><Text style={styles.dateText}>{item.date}</Text></View>
-            <Text style={styles.cardTitle}>🗺️ {item.title}</Text>
-            {item.time && <Text style={styles.cardSub}>⏰ {item.time}</Text>}
+          <TouchableOpacity onPress={() => setDetailsTrip(item)}>
+            <Card style={{ marginBottom: spacing.md }}>
+              <View style={[styles.dateTag, { backgroundColor: colors.secondary + '22', borderRadius: radius.sm }]}>
+                <Text style={[typography.small, { color: colors.secondary }]}>{item.date}</Text>
+              </View>
+              <Text style={[typography.subheading, { color: colors.textPrimary }]}>🗺️ {item.title}</Text>
+              {item.time && <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>⏰ {item.time}</Text>}
+            </Card>
           </TouchableOpacity>
         )}
-        contentContainerStyle={{ padding: 12 }}
-        ListEmptyComponent={<Text style={styles.empty}>{t('noTrips')}</Text>}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110 }}
+        ListEmptyComponent={<EmptyState icon="map-outline" text={t('noTrips')} />}
       />
-      <TouchableOpacity style={styles.fab} onPress={openAdd}>
-        <Text style={styles.fabText}>+</Text>
+      <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={openAdd}>
+        <Text style={[styles.fabText, { color: colors.primaryText }]}>+</Text>
       </TouchableOpacity>
 
       {/* Add / Edit modal */}
-      <Modal visible={modalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modal}>
-            <ScrollView>
-              <Text style={styles.modalTitle}>{editingTripId ? t('edit') : t('addTrip')}</Text>
-              <TextInput style={styles.input} placeholder={t('name')} value={title} onChangeText={setTitle} />
-              <DatePickerField placeholder={t('date')} value={date} onChange={setDate} minDate={minDate} maxDate={maxDate} />
-              <TextInput style={styles.input} placeholder={t('time')} value={time} onChangeText={setTime} />
-              <Text style={styles.label}>Stops (like building a route)</Text>
-              {stopInputs.map((stop, idx) => (
-                <View key={idx} style={styles.stopRow}>
-                  <TextInput
-                    style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                    placeholder={idx === 0 ? 'Start' : idx === stopInputs.length - 1 ? 'End' : `Stop ${idx}`}
-                    value={stop}
-                    onChangeText={v => updateStopInput(idx, v)}
-                  />
-                  {stopInputs.length > 1 && (
-                    <TouchableOpacity onPress={() => removeStopInput(idx)} style={styles.removeStopBtn}>
-                      <Text style={styles.removeStopText}>✕</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              ))}
-              <TouchableOpacity onPress={addStopInput} style={styles.addStopBtn}>
-                <Text style={styles.addStopText}>➕ Add Stop</Text>
-              </TouchableOpacity>
-              <TextInput style={styles.input} placeholder={t('notes')} value={notes} onChangeText={setNotes} multiline />
-              <View style={styles.row}>
-                <TouchableOpacity style={styles.btnCancel} onPress={() => setModalVisible(false)}><Text>{t('cancel')}</Text></TouchableOpacity>
-                <TouchableOpacity style={styles.btnSave} onPress={handleSaveTrip} disabled={saving}><Text style={{ color: '#fff' }}>{saving ? '...' : t('save')}</Text></TouchableOpacity>
-              </View>
-            </ScrollView>
+      <BottomSheetModal visible={modalVisible} onClose={() => setModalVisible(false)}>
+        <ScrollView>
+          <Text style={[typography.heading, { color: colors.textPrimary, marginBottom: spacing.lg }]}>{editingTripId ? t('edit') : t('addTrip')}</Text>
+          <TextField placeholder={t('name')} value={title} onChangeText={setTitle} />
+          <DatePickerField placeholder={t('date')} value={date} onChange={setDate} minDate={minDate} maxDate={maxDate} />
+          <TextField placeholder={t('time')} value={time} onChangeText={setTime} />
+          <Text style={[typography.caption, { color: colors.textSecondary, marginTop: spacing.sm, marginBottom: spacing.sm }]}>Stops (like building a route)</Text>
+          {stopInputs.map((stop, idx) => (
+            <View key={idx} style={styles.stopRow}>
+              <TextField
+                style={{ flex: 1, marginBottom: 0 }}
+                placeholder={idx === 0 ? 'Start' : idx === stopInputs.length - 1 ? 'End' : `Stop ${idx}`}
+                value={stop}
+                onChangeText={v => updateStopInput(idx, v)}
+              />
+              {stopInputs.length > 1 && (
+                <TouchableOpacity onPress={() => removeStopInput(idx)} style={{ padding: spacing.sm }}>
+                  <Text style={{ fontSize: 16, color: colors.error }}>✕</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ))}
+          <TouchableOpacity onPress={addStopInput} style={{ paddingVertical: spacing.sm, marginBottom: spacing.sm }}>
+            <Text style={[typography.caption, { color: colors.primary }]}>➕ Add Stop</Text>
+          </TouchableOpacity>
+          <TextField placeholder={t('notes')} value={notes} onChangeText={setNotes} multiline />
+          <View style={styles.row}>
+            <Button label={t('cancel')} variant="ghost" onPress={() => setModalVisible(false)} />
+            <Button label={saving ? '...' : t('save')} onPress={handleSaveTrip} disabled={saving} />
           </View>
-        </View>
-      </Modal>
+        </ScrollView>
+      </BottomSheetModal>
 
       {/* Details modal */}
-      <Modal visible={!!detailsTrip} animationType="slide" transparent onRequestClose={() => setDetailsTrip(null)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modal}>
-            <ScrollView>
-              {detailsTrip && (() => {
-                const stops = getTripStops(detailsTrip);
-                return (
+      <BottomSheetModal visible={!!detailsTrip} onClose={() => setDetailsTrip(null)}>
+        <ScrollView>
+          {detailsTrip && (() => {
+            const stops = getTripStops(detailsTrip);
+            return (
+              <>
+                <Text style={[typography.heading, { color: colors.textPrimary }]}>🗺️ {detailsTrip.title}</Text>
+                <View style={[styles.dateTag, { backgroundColor: colors.secondary + '22', borderRadius: radius.sm, marginTop: spacing.sm }]}>
+                  <Text style={[typography.small, { color: colors.secondary }]}>{detailsTrip.date}</Text>
+                </View>
+                {detailsTrip.time && <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>⏰ {detailsTrip.time}</Text>}
+                {detailsTrip.notes && <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>{detailsTrip.notes}</Text>}
+
+                {stops.length > 0 && (
                   <>
-                    <Text style={styles.modalTitle}>🗺️ {detailsTrip.title}</Text>
-                    <View style={styles.dateTag}><Text style={styles.dateText}>{detailsTrip.date}</Text></View>
-                    {detailsTrip.time && <Text style={styles.cardSub}>⏰ {detailsTrip.time}</Text>}
-                    {detailsTrip.notes && <Text style={styles.cardSub}>{detailsTrip.notes}</Text>}
-
-                    {stops.length > 0 && (
-                      <>
-                        <Text style={styles.label}>Stops</Text>
-                        {stops.map((s, i) => (
-                          <Text key={i} style={styles.stopListItem}>{i + 1}. {s.label}</Text>
-                        ))}
-                        {(detailsTrip.distanceKm != null || detailsTrip.durationMin != null) && (
-                          <Text style={styles.routeInfo}>
-                            🚗 {detailsTrip.distanceKm} km · {detailsTrip.durationMin} min
-                          </Text>
-                        )}
-                        <Image source={{ uri: staticMapUrl(stops) }} style={styles.mapPreview} resizeMode="cover" />
-                        <TouchableOpacity onPress={() => openInMaps(stops)}>
-                          <Text style={styles.mapLink}>📍 Open in Maps</Text>
-                        </TouchableOpacity>
-                      </>
+                    <Text style={[typography.caption, { color: colors.textSecondary, marginTop: spacing.md, marginBottom: spacing.sm }]}>Stops</Text>
+                    {stops.map((s, i) => (
+                      <Text key={i} style={[typography.body, { color: colors.textPrimary, marginBottom: 4 }]}>{i + 1}. {s.label}</Text>
+                    ))}
+                    {(detailsTrip.distanceKm != null || detailsTrip.durationMin != null) && (
+                      <Text style={[typography.caption, { color: colors.primary, marginTop: 4, fontWeight: '700' }]}>
+                        🚗 {detailsTrip.distanceKm} km · {detailsTrip.durationMin} min
+                      </Text>
                     )}
-
-                    <View style={styles.row}>
-                      <TouchableOpacity style={styles.actionBtn} onPress={() => setRsvpTrip(detailsTrip)}>
-                        <Text style={styles.actionText}>👍 {goingCount(detailsTrip)} {t('going')}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.actionBtn} onPress={() => openEditTrip(detailsTrip)}>
-                        <Text style={styles.editText}>✏️ {t('edit')}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.actionBtn} onPress={() => handleDelete(detailsTrip.id)}>
-                        <Text style={styles.deleteText}>🗑 {t('delete')}</Text>
-                      </TouchableOpacity>
-                    </View>
-                    <TouchableOpacity style={styles.btnCancel} onPress={() => setDetailsTrip(null)}>
-                      <Text>{t('cancel')}</Text>
+                    <Image source={{ uri: staticMapUrl(stops) }} style={[styles.mapPreview, { borderRadius: radius.md }]} resizeMode="cover" />
+                    <TouchableOpacity onPress={() => openInMaps(stops)}>
+                      <Text style={[typography.caption, { color: colors.secondary, marginTop: spacing.sm, textDecorationLine: 'underline' }]}>📍 Open in Maps</Text>
                     </TouchableOpacity>
                   </>
-                );
-              })()}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+                )}
 
-      <Modal visible={!!rsvpTrip} animationType="slide" transparent onRequestClose={() => setRsvpTrip(null)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modal}>
-            <Text style={styles.modalTitle}>{t('rsvp')}: {rsvpTrip?.title}</Text>
-            <ScrollView style={{ maxHeight: 300 }}>
-              {participants.map(p => {
-                const going = rsvpTrip?.rsvp?.[p.id] ?? false;
-                return (
-                  <TouchableOpacity key={p.id} style={styles.rsvpRow} onPress={() => rsvpTrip && toggleRsvp(rsvpTrip, p.id)}>
-                    <Text style={styles.rsvpName}>{p.name}</Text>
-                    <Text style={going ? styles.rsvpGoing : styles.rsvpNotGoing}>{going ? `✓ ${t('going')}` : t('notGoing')}</Text>
+                <View style={styles.row}>
+                  <TouchableOpacity onPress={() => setRsvpTrip(detailsTrip)}>
+                    <Text style={[typography.caption, { color: colors.primary }]}>👍 {goingCount(detailsTrip)} {t('going')}</Text>
                   </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-            <View style={styles.row}>
-              <TouchableOpacity style={styles.btnSave} onPress={() => setRsvpTrip(null)}><Text style={{ color: '#fff' }}>{t('save')}</Text></TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </View>
+                  <TouchableOpacity onPress={() => openEditTrip(detailsTrip)}>
+                    <Text style={[typography.caption, { color: colors.primary }]}>✏️ {t('edit')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => handleDelete(detailsTrip.id)}>
+                    <Text style={[typography.caption, { color: colors.error }]}>🗑 {t('delete')}</Text>
+                  </TouchableOpacity>
+                </View>
+                <Button label={t('cancel')} variant="ghost" onPress={() => setDetailsTrip(null)} style={{ marginTop: spacing.sm }} />
+              </>
+            );
+          })()}
+        </ScrollView>
+      </BottomSheetModal>
+
+      <BottomSheetModal visible={!!rsvpTrip} onClose={() => setRsvpTrip(null)}>
+        <Text style={[typography.heading, { color: colors.textPrimary, marginBottom: spacing.lg }]}>{t('rsvp')}: {rsvpTrip?.title}</Text>
+        <ScrollView style={{ maxHeight: 300 }}>
+          {participants.map(p => {
+            const going = rsvpTrip?.rsvp?.[p.id] ?? false;
+            return (
+              <TouchableOpacity key={p.id} style={[styles.rsvpRow, { borderBottomColor: colors.border }]} onPress={() => rsvpTrip && toggleRsvp(rsvpTrip, p.id)}>
+                <Text style={[typography.body, { color: colors.textPrimary }]}>{p.name}</Text>
+                <Text style={[typography.caption, { color: going ? colors.success : colors.textMuted, fontWeight: '700' }]}>{going ? `✓ ${t('going')}` : t('notGoing')}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+        <Button label={t('save')} onPress={() => setRsvpTrip(null)} style={{ marginTop: spacing.md }} />
+      </BottomSheetModal>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 10, elevation: 2 },
-  dateTag: { backgroundColor: '#e8f5e9', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start', marginBottom: 6 },
-  dateText: { color: '#2e7d32', fontSize: 12, fontWeight: '600' },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: '#333' },
-  cardSub: { fontSize: 13, color: '#666', marginTop: 2 },
-  mapLink: { fontSize: 13, color: '#1a73e8', marginTop: 6, textDecorationLine: 'underline' },
-  mapPreview: { height: 180, borderRadius: 8, marginTop: 8 },
-  actionBtn: { paddingVertical: 4 },
-  actionText: { fontSize: 12, color: '#2e7d32', fontWeight: '600' },
-  editText: { fontSize: 12, color: '#2e7d32', fontWeight: '600' },
-  deleteText: { fontSize: 12, color: '#c62828', fontWeight: '600' },
-  empty: { textAlign: 'center', color: '#aaa', marginTop: 40, fontStyle: 'italic' },
-  fab: { position: 'absolute', bottom: 24, right: 24, backgroundColor: '#2e7d32', width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 4 },
-  fabText: { color: '#fff', fontSize: 28, lineHeight: 32 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, maxHeight: '88%' },
-  modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 16, color: '#333' },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 10, fontSize: 15 },
-  label: { fontSize: 13, color: '#666', marginTop: 8, marginBottom: 8, fontWeight: '600' },
+  dateTag: { paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start', marginBottom: 6 },
+  fab: { position: 'absolute', bottom: 100, right: 24, width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 4 },
+  fabText: { fontSize: 28, lineHeight: 32 },
   stopRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  removeStopBtn: { padding: 8 },
-  removeStopText: { fontSize: 16, color: '#c62828' },
-  addStopBtn: { paddingVertical: 8, marginBottom: 8 },
-  addStopText: { color: '#2e7d32', fontWeight: '600', fontSize: 14 },
-  stopListItem: { fontSize: 14, color: '#333', marginBottom: 4 },
-  routeInfo: { fontSize: 13, color: '#2e7d32', fontWeight: '700', marginTop: 4 },
+  mapPreview: { height: 180, marginTop: 8 },
   row: { flexDirection: 'row', justifyContent: 'flex-end', gap: 16, marginTop: 12, alignItems: 'center' },
-  btnCancel: { padding: 12 },
-  btnSave: { backgroundColor: '#2e7d32', borderRadius: 8, paddingHorizontal: 20, paddingVertical: 12 },
-  rsvpRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  rsvpName: { fontSize: 15, color: '#333' },
-  rsvpGoing: { fontSize: 13, color: '#2e7d32', fontWeight: '700' },
-  rsvpNotGoing: { fontSize: 13, color: '#aaa' },
+  rsvpRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
 });

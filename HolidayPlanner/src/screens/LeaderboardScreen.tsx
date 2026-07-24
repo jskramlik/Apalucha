@@ -1,16 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../theme/ThemeContext';
 import { Member, Child } from '../types';
+import { Screen, Card, Avatar } from '../components/ui';
 
 type Participant = (Member | Child) & { id: string };
 
 export default function LeaderboardScreen() {
   const { t } = useTranslation();
   const { holidayId } = useAuth();
+  const { colors, spacing, radius, typography } = useTheme();
   const [participants, setParticipants] = useState<Participant[]>([]);
 
   useEffect(() => {
@@ -33,41 +36,34 @@ export default function LeaderboardScreen() {
   const medals = ['🥇', '🥈', '🥉'];
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>🏆 {t('leaderboard')}</Text>
+    <Screen>
+      <Text style={[typography.title, { color: colors.textPrimary, padding: spacing.xl, paddingBottom: spacing.sm }]}>
+        🏆 {t('leaderboard')}
+      </Text>
       <FlatList
         data={participants}
         keyExtractor={i => i.id}
         renderItem={({ item, index }) => (
-          <View style={[styles.row, index === 0 && styles.first]}>
+          <Card
+            style={[
+              styles.row,
+              { marginBottom: spacing.sm },
+              index === 0 ? { borderColor: '#FFD700', borderWidth: 2 } : {},
+            ]}
+          >
             <Text style={styles.rank}>{medals[index] ?? `#${index + 1}`}</Text>
-            {item.photoUrl ? (
-              <Image source={{ uri: item.photoUrl }} style={styles.avatar} />
-            ) : item.avatar ? (
-              <View style={styles.avatarPlaceholder}><Text style={styles.avatarEmoji}>{item.avatar}</Text></View>
-            ) : (
-              <View style={styles.avatarPlaceholder}><Text style={styles.avatarLetter}>{(item.name?.[0] ?? '?').toUpperCase()}</Text></View>
-            )}
-            <Text style={styles.name}>{item.name}</Text>
-            <Text style={styles.points}>{item.totalPoints ?? 0} pts</Text>
-          </View>
+            <Avatar name={item.name} photoUrl={item.photoUrl} avatar={item.avatar} size={40} />
+            <Text style={[typography.subheading, { color: colors.textPrimary, flex: 1, marginLeft: spacing.md }]}>{item.name}</Text>
+            <Text style={[typography.subheading, { color: colors.primary }]}>{item.totalPoints ?? 0} pts</Text>
+          </Card>
         )}
-        contentContainerStyle={{ padding: 12 }}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110 }}
       />
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  title: { fontSize: 22, fontWeight: 'bold', color: '#2e7d32', padding: 20, paddingBottom: 8 },
-  row: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 8, elevation: 1 },
-  first: { borderWidth: 2, borderColor: '#ffd700' },
+  row: { flexDirection: 'row', alignItems: 'center' },
   rank: { fontSize: 22, width: 36 },
-  avatar: { width: 40, height: 40, borderRadius: 20, marginRight: 12 },
-  avatarPlaceholder: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#2e7d32', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  avatarLetter: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  avatarEmoji: { fontSize: 22 },
-  name: { flex: 1, fontSize: 16, color: '#333', fontWeight: '600' },
-  points: { fontSize: 16, color: '#2e7d32', fontWeight: '700' },
 });

@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable } from 'react-native';
 import { collection, onSnapshot, doc, getDoc, addDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../theme/ThemeContext';
 import { Trip, Meal, CleaningTask, Holiday, Competition, ScheduleEntry } from '../types';
 import { showAlert } from '../utils/alert';
+import { Screen, Card, TextField, Button, EmptyState } from '../components/ui';
 
 function addDays(iso: string, delta: number): string {
   const d = new Date(`${iso}T00:00:00`);
@@ -23,6 +25,7 @@ function formatDisplayDate(iso: string): string {
 export default function HomeScreen() {
   const { t } = useTranslation();
   const { holidayId } = useAuth();
+  const { colors, spacing, radius, typography } = useTheme();
   const [holiday, setHoliday] = useState<Holiday | null>(null);
   const [selectedDate, setSelectedDate] = useState('');
   const [tripsOnDate, setTripsOnDate] = useState<Trip[]>([]);
@@ -136,163 +139,126 @@ export default function HomeScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>{holiday?.name ?? '🏕️ Apalucha Planner'}</Text>
+    <Screen>
+      <ScrollView contentContainerStyle={{ paddingBottom: 110 }}>
+        <Text style={[typography.title, { color: colors.textPrimary, padding: spacing.xl, paddingBottom: spacing.xs }]}>
+          {holiday?.name ?? '🏕️ Apalucha Planner'}
+        </Text>
 
-      <View style={styles.dayNav}>
-        <Pressable
-          style={({ pressed }) => [styles.navButton, pressed && canGoPrev && styles.navButtonPressed]}
-          onPress={goPrev}
-        >
-          <Text style={[styles.navArrow, !canGoPrev && styles.navArrowDisabled]}>‹</Text>
-        </Pressable>
-        <Text style={styles.date}>{selectedDate ? formatDisplayDate(selectedDate) : ''}</Text>
-        <Pressable
-          style={({ pressed }) => [styles.navButton, pressed && canGoNext && styles.navButtonPressed]}
-          onPress={goNext}
-        >
-          <Text style={[styles.navArrow, !canGoNext && styles.navArrowDisabled]}>›</Text>
-        </Pressable>
-      </View>
-
-      <View style={styles.section}>
-        <View style={styles.scheduleHeader}>
-          <Text style={styles.sectionTitle}>{t('schedule')}</Text>
-          <TouchableOpacity onPress={openPicker}>
-            <Text style={styles.addToScheduleText}>➕ {t('addToSchedule')}</Text>
-          </TouchableOpacity>
+        <View style={styles.dayNav}>
+          <Pressable
+            style={({ pressed }) => [styles.navButton, pressed && canGoPrev && { backgroundColor: colors.surfaceElevated }]}
+            onPress={goPrev}
+          >
+            <Text style={[styles.navArrow, { color: canGoPrev ? colors.primary : colors.textMuted }]}>‹</Text>
+          </Pressable>
+          <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', flex: 1 }]}>
+            {selectedDate ? formatDisplayDate(selectedDate) : ''}
+          </Text>
+          <Pressable
+            style={({ pressed }) => [styles.navButton, pressed && canGoNext && { backgroundColor: colors.surfaceElevated }]}
+            onPress={goNext}
+          >
+            <Text style={[styles.navArrow, { color: canGoNext ? colors.primary : colors.textMuted }]}>›</Text>
+          </Pressable>
         </View>
-        {scheduleEntries.length === 0 ? <Empty text={t('noSchedule')} /> : scheduleEntries.map(entry => (
-          <View key={entry.id} style={styles.scheduleRow}>
-            {entry.timeFrom ? (
-              <Text style={styles.scheduleTime}>{entry.timeFrom}{entry.timeTo ? `–${entry.timeTo}` : ''}</Text>
-            ) : null}
-            <Text style={styles.scheduleLabel}>{entry.label}</Text>
-            <TouchableOpacity onPress={() => handleRemoveEntry(entry.id)}>
-              <Text style={styles.removeEntryText}>✕</Text>
+
+        <Card style={{ marginHorizontal: spacing.lg, marginTop: spacing.sm }}>
+          <View style={styles.scheduleHeader}>
+            <Text style={[typography.heading, { color: colors.textPrimary }]}>{t('schedule')}</Text>
+            <TouchableOpacity onPress={openPicker}>
+              <Text style={[typography.caption, { color: colors.primary }]}>➕ {t('addToSchedule')}</Text>
             </TouchableOpacity>
           </View>
-        ))}
-      </View>
-
-      <Section title={t('cleaning')}>
-        {cleaningTasks.length === 0 ? <Empty text={t('noCleaning')} /> :
-          cleaningTasks.map(c => <Item key={c.id} main={c.task} sub={c.assignedTo} />)}
-      </Section>
-
-      <Modal visible={pickerVisible} animationType="slide" transparent onRequestClose={() => setPickerVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modal}>
-            <Text style={styles.modalTitle}>{t('selectItem')}</Text>
-            <View style={styles.timeRow}>
-              <TextInput
-                style={[styles.timeInput, { flex: 1 }]}
-                placeholder="From (e.g. 14:30)"
-                value={pickerTimeFrom}
-                onChangeText={setPickerTimeFrom}
-              />
-              <TextInput
-                style={[styles.timeInput, { flex: 1 }]}
-                placeholder="To (e.g. 16:00)"
-                value={pickerTimeTo}
-                onChangeText={setPickerTimeTo}
-              />
+          {scheduleEntries.length === 0 ? <EmptyState icon="calendar-outline" text={t('noSchedule')} /> : scheduleEntries.map(entry => (
+            <View key={entry.id} style={[styles.scheduleRow, { borderBottomColor: colors.border }]}>
+              {entry.timeFrom ? (
+                <Text style={[typography.caption, { color: colors.primary, width: 90 }]}>
+                  {entry.timeFrom}{entry.timeTo ? `–${entry.timeTo}` : ''}
+                </Text>
+              ) : null}
+              <Text style={[typography.body, { color: colors.textPrimary, flex: 1 }]}>{entry.label}</Text>
+              <TouchableOpacity onPress={() => handleRemoveEntry(entry.id)}>
+                <Text style={{ fontSize: 16, color: colors.error, paddingHorizontal: spacing.sm }}>✕</Text>
+              </TouchableOpacity>
             </View>
-            <ScrollView style={{ maxHeight: 400 }}>
-              {tripsOnDate.length > 0 && (
-                <>
-                  <Text style={styles.pickerGroupLabel}>{t('trips')}</Text>
-                  {tripsOnDate.map(trip => (
-                    <TouchableOpacity key={trip.id} style={styles.pickerRow} onPress={() => handlePick('trip', trip.id, `🗺️ ${trip.title}`)}>
-                      <Text style={styles.pickerRowText}>🗺️ {trip.title}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </>
-              )}
-              {mealPickerItems.length > 0 && (
-                <>
-                  <Text style={styles.pickerGroupLabel}>{t('mealPlan')}</Text>
-                  {mealPickerItems.map(item => (
-                    <TouchableOpacity key={item.label} style={styles.pickerRow} onPress={() => handlePick('meal', item.refId, item.label)}>
-                      <Text style={styles.pickerRowText}>{item.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </>
-              )}
-              {competitions.length > 0 && (
-                <>
-                  <Text style={styles.pickerGroupLabel}>{t('competitions')}</Text>
-                  {competitions.map(comp => (
-                    <TouchableOpacity key={comp.id} style={styles.pickerRow} onPress={() => handlePick('competition', comp.id, `🏆 ${comp.name}`)}>
-                      <Text style={styles.pickerRowText}>🏆 {comp.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </>
-              )}
-              {tripsOnDate.length === 0 && mealPickerItems.length === 0 && competitions.length === 0 && (
-                <Text style={styles.empty}>Nothing available to add yet</Text>
-              )}
-            </ScrollView>
-            <TouchableOpacity style={styles.btnCancel} onPress={() => setPickerVisible(false)}>
-              <Text>{t('cancel')}</Text>
-            </TouchableOpacity>
+          ))}
+        </Card>
+
+        <Card style={{ marginHorizontal: spacing.lg, marginTop: spacing.md }}>
+          <Text style={[typography.heading, { color: colors.textPrimary, marginBottom: spacing.md }]}>{t('cleaning')}</Text>
+          {cleaningTasks.length === 0 ? <EmptyState icon="brush-outline" text={t('noCleaning')} /> :
+            cleaningTasks.map(c => (
+              <View key={c.id} style={[styles.item, { borderBottomColor: colors.border }]}>
+                <Text style={[typography.body, { color: colors.textPrimary }]}>{c.task}</Text>
+                <Text style={[typography.small, { color: colors.textMuted, marginTop: 2 }]}>{c.assignedTo}</Text>
+              </View>
+            ))}
+        </Card>
+
+        {pickerVisible && (
+          <View style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: colors.overlay }]}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setPickerVisible(false)} />
+            <View style={[styles.sheet, { backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl }]}>
+              <View style={[styles.handle, { backgroundColor: colors.border }]} />
+              <Text style={[typography.heading, { color: colors.textPrimary, marginBottom: spacing.lg }]}>{t('selectItem')}</Text>
+              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                <TextField style={{ flex: 1 }} placeholder="From (e.g. 14:30)" value={pickerTimeFrom} onChangeText={setPickerTimeFrom} />
+                <TextField style={{ flex: 1 }} placeholder="To (e.g. 16:00)" value={pickerTimeTo} onChangeText={setPickerTimeTo} />
+              </View>
+              <ScrollView style={{ maxHeight: 360 }}>
+                {tripsOnDate.length > 0 && (
+                  <>
+                    <Text style={[typography.small, { color: colors.textMuted, marginTop: spacing.md, marginBottom: spacing.sm, textTransform: 'uppercase' }]}>{t('trips')}</Text>
+                    {tripsOnDate.map(trip => (
+                      <TouchableOpacity key={trip.id} style={[styles.pickerRow, { borderBottomColor: colors.border }]} onPress={() => handlePick('trip', trip.id, `🗺️ ${trip.title}`)}>
+                        <Text style={[typography.body, { color: colors.textPrimary }]}>🗺️ {trip.title}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </>
+                )}
+                {mealPickerItems.length > 0 && (
+                  <>
+                    <Text style={[typography.small, { color: colors.textMuted, marginTop: spacing.md, marginBottom: spacing.sm, textTransform: 'uppercase' }]}>{t('mealPlan')}</Text>
+                    {mealPickerItems.map(item => (
+                      <TouchableOpacity key={item.label} style={[styles.pickerRow, { borderBottomColor: colors.border }]} onPress={() => handlePick('meal', item.refId, item.label)}>
+                        <Text style={[typography.body, { color: colors.textPrimary }]}>{item.label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </>
+                )}
+                {competitions.length > 0 && (
+                  <>
+                    <Text style={[typography.small, { color: colors.textMuted, marginTop: spacing.md, marginBottom: spacing.sm, textTransform: 'uppercase' }]}>{t('competitions')}</Text>
+                    {competitions.map(comp => (
+                      <TouchableOpacity key={comp.id} style={[styles.pickerRow, { borderBottomColor: colors.border }]} onPress={() => handlePick('competition', comp.id, `🏆 ${comp.name}`)}>
+                        <Text style={[typography.body, { color: colors.textPrimary }]}>🏆 {comp.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </>
+                )}
+                {tripsOnDate.length === 0 && mealPickerItems.length === 0 && competitions.length === 0 && (
+                  <EmptyState text="Nothing available to add yet" />
+                )}
+              </ScrollView>
+              <Button label={t('cancel')} variant="ghost" onPress={() => setPickerVisible(false)} style={{ marginTop: spacing.md }} />
+            </View>
           </View>
-        </View>
-      </Modal>
-    </ScrollView>
+        )}
+      </ScrollView>
+    </Screen>
   );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {children}
-    </View>
-  );
-}
-
-function Item({ main, sub }: { main: string; sub?: string }) {
-  return (
-    <View style={styles.item}>
-      <Text style={styles.itemMain}>{main}</Text>
-      {sub && <Text style={styles.itemSub}>{sub}</Text>}
-    </View>
-  );
-}
-
-function Empty({ text }: { text: string }) {
-  return <Text style={styles.empty}>{text}</Text>;
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  title: { fontSize: 22, fontWeight: 'bold', color: '#2e7d32', padding: 20, paddingBottom: 4 },
-  dayNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20, paddingHorizontal: 20, marginBottom: 8 },
+  dayNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20, paddingHorizontal: 20, marginBottom: 4 },
   navButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  navButtonPressed: { backgroundColor: '#e8f5e9' },
-  navArrow: { fontSize: 28, color: '#2e7d32', fontWeight: '700' },
-  navArrowDisabled: { color: '#ccc' },
-  date: { fontSize: 15, color: '#666', textAlign: 'center', flex: 1 },
-  section: { margin: 12, backgroundColor: '#fff', borderRadius: 12, padding: 16, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#333', marginBottom: 10 },
-  scheduleHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  addToScheduleText: { fontSize: 13, color: '#2e7d32', fontWeight: '600' },
-  scheduleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  scheduleTime: { fontSize: 13, color: '#2e7d32', fontWeight: '700', width: 90 },
-  scheduleLabel: { fontSize: 15, color: '#333', flex: 1 },
-  removeEntryText: { fontSize: 16, color: '#c62828', paddingHorizontal: 8 },
-  item: { paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  itemMain: { fontSize: 15, color: '#333' },
-  itemSub: { fontSize: 13, color: '#888', marginTop: 2 },
-  empty: { color: '#aaa', fontStyle: 'italic', fontSize: 14 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24 },
-  modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 16, color: '#333' },
-  timeRow: { flexDirection: 'row', gap: 8 },
-  timeInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 10, fontSize: 15 },
-  pickerGroupLabel: { fontSize: 12, color: '#888', fontWeight: '700', marginTop: 12, marginBottom: 6, textTransform: 'uppercase' },
-  pickerRow: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  pickerRowText: { fontSize: 15, color: '#333' },
-  btnCancel: { padding: 12, alignItems: 'center', marginTop: 8 },
+  navArrow: { fontSize: 28, fontWeight: '700' },
+  scheduleHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  scheduleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+  item: { paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth },
+  overlay: { justifyContent: 'flex-end' },
+  sheet: { padding: 24, maxHeight: '85%' },
+  handle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  pickerRow: { paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
 });
