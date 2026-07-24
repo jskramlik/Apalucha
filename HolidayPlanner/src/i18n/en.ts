@@ -1,3 +1,5 @@
+import { MONTH_NAMES, WEEKDAYS_SHORT } from '../utils/dateUtils';
+
 export default {
   home: 'Home',
   mealPlan: 'Meal Plan',
@@ -80,4 +82,9 @@ export default {
   addToSchedule: 'Add to Schedule',
   selectItem: 'Select an Item',
   noSchedule: 'Nothing scheduled for this day',
+  none: 'None',
+  from: 'From',
+  to: 'To',
+  months: MONTH_NAMES,
+  weekdaysShort: WEEKDAYS_SHORT,
 };

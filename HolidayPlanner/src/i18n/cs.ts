@@ -80,4 +80,12 @@ export default {
   addToSchedule: 'Přidat do harmonogramu',
   selectItem: 'Vybrat položku',
   noSchedule: 'Na tento den nic naplánováno',
+  none: 'Žádný',
+  from: 'Od',
+  to: 'Do',
+  months: [
+    'Leden', 'Únor', 'Březen', 'Duben', 'Květen', 'Červen',
+    'Červenec', 'Srpen', 'Září', 'Říjen', 'Listopad', 'Prosinec',
+  ],
+  weekdaysShort: ['Po', 'Út', 'St', 'Čt', 'Pá', 'So', 'Ne'],
 };

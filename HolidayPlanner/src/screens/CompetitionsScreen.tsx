@@ -61,7 +61,7 @@ export default function CompetitionsScreen() {
       openScores(comp);
       navigation.setParams({ openCompId: undefined });
     }
-  }, [route.params?.openCompId, competitions]);
+  }, [route.params?.openCompId, competitions, navigation]);
 
   const openAdd = () => {
     setEditingCompId(null);

@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, StyleProp, ViewStyle } from 'react-native';
-import { MONTH_NAMES, toIso, parseIso, nextMonth, previousMonth, buildCalendarCells, isWithinRange } from '../utils/dateUtils';
+import { useTranslation } from 'react-i18next';
+import { toIso, parseIso, nextMonth, previousMonth, buildCalendarCells, isWithinRange } from '../utils/dateUtils';
 import { useTheme } from '../theme/ThemeContext';
-
-const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
 interface Props {
   placeholder: string;
@@ -15,7 +14,10 @@ interface Props {
 }
 
 export default function DatePickerField({ placeholder, value, onChange, minDate, maxDate, style }: Props) {
-  const { colors, radius, spacing, typography } = useTheme();
+  const { t } = useTranslation();
+  const { colors, radius, typography } = useTheme();
+  const monthNames = t('months', { returnObjects: true }) as unknown as string[];
+  const weekdays = t('weekdaysShort', { returnObjects: true }) as unknown as string[];
   const [visible, setVisible] = useState(false);
   const parsed = parseIso(value);
   const today = new Date();
@@ -64,15 +66,15 @@ export default function DatePickerField({ placeholder, value, onChange, minDate,
               <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.navButton}>
                 <Text style={[styles.navText, { color: colors.primary }]}>‹</Text>
               </TouchableOpacity>
-              <Text style={[typography.subheading, { color: colors.textPrimary }]}>{MONTH_NAMES[viewMonth]} {viewYear}</Text>
+              <Text style={[typography.subheading, { color: colors.textPrimary }]}>{monthNames[viewMonth]} {viewYear}</Text>
               <TouchableOpacity onPress={() => changeMonth(1)} style={styles.navButton}>
                 <Text style={[styles.navText, { color: colors.primary }]}>›</Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.weekRow}>
-              {WEEKDAYS.map(w => (
-                <Text key={w} style={[typography.small, { flex: 1, textAlign: 'center', color: colors.textMuted }]}>{w}</Text>
+              {weekdays.map((w, i) => (
+                <Text key={i} style={[typography.small, { flex: 1, textAlign: 'center', color: colors.textMuted }]}>{w}</Text>
               ))}
             </View>
 
@@ -118,5 +120,5 @@ const styles = StyleSheet.create({
   weekRow: { flexDirection: 'row', marginBottom: 4 },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cellWrapper: { width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'center', justifyContent: 'center' },
-  dayCell: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  dayCell: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
 });

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
-import { collection, onSnapshot, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
@@ -23,7 +23,7 @@ export default function AdminScreen() {
 
   useEffect(() => {
     if (!holidayId) return;
-    getDoc(doc(db, 'holidays', holidayId)).then(snap => {
+    const unsubHoliday = onSnapshot(doc(db, 'holidays', holidayId), snap => {
       if (snap.exists()) {
         const data = snap.data();
         setInviteCode(data.inviteCode);
@@ -32,9 +32,10 @@ export default function AdminScreen() {
         setEndDate(data.endDate);
       }
     });
-    return onSnapshot(collection(db, 'holidays', holidayId, 'members'), snap => {
+    const unsubMembers = onSnapshot(collection(db, 'holidays', holidayId, 'members'), snap => {
       setMembers(snap.docs.map(d => ({ id: d.id, ...d.data() } as Member)));
     });
+    return () => { unsubHoliday(); unsubMembers(); };
   }, [holidayId]);
 
   if (member?.role !== 'admin') {
@@ -42,9 +43,14 @@ export default function AdminScreen() {
   }
 
   const handleRemoveMember = (m: Member) => {
-    if (m.role === 'admin') { showAlert('Cannot remove admin'); return; }
-    showConfirm(t('delete'), `Remove ${m.name}?`, () => {
-      deleteDoc(doc(db, 'holidays', holidayId!, 'members', m.id));
+    if (m.role === 'admin') { showAlert('Error', 'Cannot remove admin'); return; }
+    showConfirm(t('delete'), `Remove ${m.name}?`, async () => {
+      try {
+        await deleteDoc(doc(db, 'holidays', holidayId!, 'members', m.id));
+        await deleteDoc(doc(db, 'userHolidays', m.id, 'holidays', holidayId!));
+      } catch (e: any) {
+        showAlert('Error', e.message);
+      }
     });
   };
 
@@ -53,12 +59,11 @@ export default function AdminScreen() {
     setSaving(true);
     try {
       await updateDoc(doc(db, 'holidays', holidayId!), { name, startDate, endDate });
-      await Promise.all(
-        members.map(m =>
-          updateDoc(doc(db, 'userHolidays', m.id, 'holidays', holidayId!), { holidayName: name }).catch(() => {})
-        )
+      const results = await Promise.allSettled(
+        members.map(m => updateDoc(doc(db, 'userHolidays', m.id, 'holidays', holidayId!), { holidayName: name }))
       );
-      showAlert('Saved!');
+      const failures = results.filter(r => r.status === 'rejected').length;
+      showAlert(failures > 0 ? 'Saved with warnings' : 'Saved!', failures > 0 ? `${failures} member(s) may still show the old name.` : undefined);
     } catch (e: any) {
       showAlert('Error', e.message);
     } finally {

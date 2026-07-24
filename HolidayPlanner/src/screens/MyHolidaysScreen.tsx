@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { useTheme } from '../../theme/ThemeContext';
 
@@ -12,9 +12,12 @@ interface Props {
 export default function Avatar({ name, photoUrl, avatar, size = 40 }: Props) {
   const { colors } = useTheme();
   const dim = { width: size, height: size, borderRadius: size / 2 };
+  const [imageFailed, setImageFailed] = useState(false);
 
-  if (photoUrl) {
-    return <Image source={{ uri: photoUrl }} style={dim} />;
+  useEffect(() => { setImageFailed(false); }, [photoUrl]);
+
+  if (photoUrl && !imageFailed) {
+    return <Image source={{ uri: photoUrl }} style={dim} onError={() => setImageFailed(true)} />;
   }
 
   return (

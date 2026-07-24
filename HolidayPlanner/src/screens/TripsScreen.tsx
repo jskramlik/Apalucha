@@ -90,7 +90,7 @@ export default function TripsScreen() {
       setDetailsTrip(trip);
       navigation.setParams({ openTripId: undefined });
     }
-  }, [route.params?.openTripId, trips]);
+  }, [route.params?.openTripId, trips, navigation]);
 
   const openAdd = () => {
     setEditingTripId(null);
@@ -123,12 +123,14 @@ export default function TripsScreen() {
     setSaving(true);
     try {
       const geocoded: TripStop[] = [];
-      for (const label of stopLabels) {
-        const coords = await geocodeLocation(label);
-        if (coords) geocoded.push({ label, ...coords });
+      for (let i = 0; i < stopLabels.length; i++) {
+        // Nominatim's usage policy asks for max ~1 request/sec between calls.
+        if (i > 0) await new Promise(resolve => setTimeout(resolve, 1100));
+        const coords = await geocodeLocation(stopLabels[i]);
+        if (coords) geocoded.push({ label: stopLabels[i], ...coords });
       }
 
-      const route = geocoded.length >= 2 ? await getRouteInfo(geocoded) : null;
+      const routeInfo = geocoded.length >= 2 ? await getRouteInfo(geocoded) : null;
 
       const data = {
         title, date, time, notes,
@@ -136,7 +138,7 @@ export default function TripsScreen() {
         location: geocoded[0]?.label ?? '',
         lat: geocoded[0]?.lat,
         lng: geocoded[0]?.lng,
-        ...(route ? { distanceKm: route.distanceKm, durationMin: route.durationMin } : {}),
+        ...(routeInfo ? { distanceKm: routeInfo.distanceKm, durationMin: routeInfo.durationMin } : {}),
       };
 
       if (editingTripId) {

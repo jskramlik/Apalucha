@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import { Text, StyleSheet, FlatList } from 'react-native';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
@@ -13,7 +13,7 @@ type Participant = (Member | Child) & { id: string };
 export default function LeaderboardScreen() {
   const { t } = useTranslation();
   const { holidayId } = useAuth();
-  const { colors, spacing, radius, typography } = useTheme();
+  const { colors, spacing, typography } = useTheme();
   const [participants, setParticipants] = useState<Participant[]>([]);
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { collection, doc, setDoc, query, where, getDocs } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
@@ -12,6 +12,16 @@ import { Screen, TextField, Button, Chip } from '../components/ui';
 
 function generateCode() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
+async function generateUniqueCode(): Promise<string> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = generateCode();
+    const snap = await getDocs(query(collection(db, 'holidays'), where('inviteCode', '==', code)));
+    if (snap.empty) return code;
+  }
+  // Astronomically unlikely to be reached, but guarantees termination.
+  return `${generateCode()}${Date.now().toString(36).slice(-2)}`.toUpperCase();
 }
 
 export default function HolidaySetupScreen() {
@@ -36,7 +46,7 @@ export default function HolidaySetupScreen() {
     try {
       const user = auth.currentUser!;
       const holidayRef = doc(collection(db, 'holidays'));
-      const code = generateCode();
+      const code = await generateUniqueCode();
       await setDoc(holidayRef, {
         name,
         startDate,

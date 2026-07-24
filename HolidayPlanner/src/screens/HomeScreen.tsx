@@ -8,22 +8,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../theme/ThemeContext';
 import { Trip, Meal, CleaningTask, Holiday, Competition, ScheduleEntry } from '../types';
 import { showAlert } from '../utils/alert';
+import { addDays, todayIso } from '../utils/dateUtils';
 import { Screen, Card, Button, EmptyState } from '../components/ui';
 import DatePickerField from '../components/DatePickerField';
 import TimePickerField from '../components/TimePickerField';
-
-function addDays(iso: string, delta: number): string {
-  const d = new Date(`${iso}T00:00:00`);
-  d.setDate(d.getDate() + delta);
-  if (isNaN(d.getTime())) return iso;
-  return d.toISOString().split('T')[0];
-}
-
-function formatDisplayDate(iso: string): string {
-  const d = new Date(`${iso}T00:00:00`);
-  if (isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
-}
 
 export default function HomeScreen() {
   const { t } = useTranslation();
@@ -47,7 +35,7 @@ export default function HomeScreen() {
       if (!snap.exists()) return;
       const data = { id: snap.id, ...snap.data() } as Holiday;
       setHoliday(data);
-      const today = new Date().toISOString().split('T')[0];
+      const today = todayIso();
       setSelectedDate(today < data.startDate ? data.startDate : today > data.endDate ? data.endDate : today);
     });
   }, [holidayId]);
@@ -164,7 +152,7 @@ export default function HomeScreen() {
           </Pressable>
           {holiday ? (
             <DatePickerField
-              placeholder="Select date"
+              placeholder={t('date')}
               value={selectedDate}
               onChange={setSelectedDate}
               minDate={holiday.startDate}
@@ -224,8 +212,8 @@ export default function HomeScreen() {
               <View style={[styles.handle, { backgroundColor: colors.border }]} />
               <Text style={[typography.heading, { color: colors.textPrimary, marginBottom: spacing.lg }]}>{t('selectItem')}</Text>
               <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                <TimePickerField style={{ flex: 1 }} placeholder="From" value={pickerTimeFrom} onChange={setPickerTimeFrom} />
-                <TimePickerField style={{ flex: 1 }} placeholder="To" value={pickerTimeTo} onChange={setPickerTimeTo} />
+                <TimePickerField style={{ flex: 1 }} placeholder={t('from')} value={pickerTimeFrom} onChange={setPickerTimeFrom} />
+                <TimePickerField style={{ flex: 1 }} placeholder={t('to')} value={pickerTimeTo} onChange={setPickerTimeTo} />
               </View>
               <ScrollView style={{ maxHeight: 360 }}>
                 {tripsOnDate.length > 0 && (

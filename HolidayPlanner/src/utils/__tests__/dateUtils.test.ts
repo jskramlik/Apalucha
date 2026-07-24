@@ -7,6 +7,8 @@ import {
   previousMonth,
   buildCalendarCells,
   isWithinRange,
+  addDays,
+  todayIso,
   MONTH_NAMES,
 } from '../dateUtils';
 
@@ -127,6 +129,43 @@ describe('isWithinRange', () => {
   it('treats the boundary dates themselves as within range', () => {
     expect(isWithinRange(2026, 5, 1, '2026-06-01', '2026-06-30')).toBe(true);
     expect(isWithinRange(2026, 5, 30, '2026-06-01', '2026-06-30')).toBe(true);
+  });
+});
+
+describe('addDays', () => {
+  it('advances by a positive delta', () => {
+    expect(addDays('2026-07-24', 1)).toBe('2026-07-25');
+  });
+
+  it('goes back by a negative delta', () => {
+    expect(addDays('2026-07-24', -1)).toBe('2026-07-23');
+  });
+
+  it('rolls over into the next month', () => {
+    expect(addDays('2026-07-31', 1)).toBe('2026-08-01');
+  });
+
+  it('rolls over into the previous month', () => {
+    expect(addDays('2026-08-01', -1)).toBe('2026-07-31');
+  });
+
+  it('rolls over into the next year', () => {
+    expect(addDays('2026-12-31', 1)).toBe('2027-01-01');
+  });
+
+  it('returns the input unchanged for malformed input', () => {
+    expect(addDays('not-a-date', 1)).toBe('not-a-date');
+  });
+});
+
+describe('todayIso', () => {
+  it('matches the local calendar date', () => {
+    const now = new Date();
+    expect(todayIso()).toBe(toIso(now.getFullYear(), now.getMonth(), now.getDate()));
+  });
+
+  it('returns a well-formed ISO date string', () => {
+    expect(todayIso()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });
 

@@ -3,6 +3,8 @@ export const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
+export const WEEKDAYS_SHORT = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+
 export interface ParsedDate {
   year: number;
   month: number; // 0-indexed
@@ -50,4 +52,21 @@ export function isWithinRange(year: number, month: number, day: number, minDate?
   if (minDate && iso < minDate) return false;
   if (maxDate && iso > maxDate) return false;
   return true;
+}
+
+// Uses local-time Date arithmetic (like daysInMonth/firstWeekdayOfMonth above) rather than
+// toISOString(), which converts to UTC and silently shifts the result by a day in any
+// timezone ahead of UTC (e.g. Europe) when the local offset crosses midnight.
+export function addDays(iso: string, delta: number): string {
+  const parsed = parseIso(iso);
+  if (!parsed) return iso;
+  const d = new Date(parsed.year, parsed.month, parsed.day);
+  d.setDate(d.getDate() + delta);
+  return toIso(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+// Today's date in the device's local timezone (not UTC) as an ISO string.
+export function todayIso(): string {
+  const d = new Date();
+  return toIso(d.getFullYear(), d.getMonth(), d.getDate());
 }

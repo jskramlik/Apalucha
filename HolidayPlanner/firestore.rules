@@ -1,0 +1,99 @@
+rules_version = '2';
+
+// NOT YET DEPLOYED. This app currently has no Firestore security rules at
+// all, which means every "isAdmin"/"role" check in the client code (see
+// AuthContext.tsx's adminUserId self-heal, HolidaySetupScreen.tsx's
+// role: 'admin' writes) is unenforced -- any signed-in user can currently
+// write { role: 'admin' } onto themselves for any holiday.
+//
+// Deploy with: firebase deploy --only firestore:rules
+// (requires `npm install -g firebase-tools` and `firebase login` once).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isMember(holidayId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/holidays/$(holidayId)/members/$(request.auth.uid));
+    }
+
+    function isAdmin(holidayId) {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/holidays/$(holidayId)/members/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    match /holidays/{holidayId} {
+      // Any signed-in user may read holiday metadata (name/dates/inviteCode).
+      // This app has no backend function layer to broker invite-code lookups
+      // more narrowly, so a new user must be able to query by inviteCode
+      // before they're a member. Accepted tradeoff for a small, trusted-group
+      // app; tighten with a callable Cloud Function if this ever needs to
+      // resist a large or semi-public user base.
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.adminUserId == request.auth.uid;
+
+      // Only the current admin can edit, and never the identity/invite fields.
+      allow update: if isAdmin(holidayId)
+        && request.resource.data.adminUserId == resource.data.adminUserId
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.inviteCode == resource.data.inviteCode;
+
+      allow delete: if false;
+
+      match /members/{memberId} {
+        allow read: if isMember(holidayId);
+
+        // A user may only create/update their OWN member doc, and may only
+        // grant themselves role: 'admin' if the holiday's adminUserId already
+        // names them (mirrors AuthContext's self-heal migration). This is the
+        // fix for the privilege-escalation gap: without it, any signed-in
+        // user could set { role: 'admin' } on themselves for any holiday.
+        allow create, update: if isSignedIn() && memberId == request.auth.uid
+          && (request.resource.data.role != 'admin'
+              || get(/databases/$(database)/documents/holidays/$(holidayId)).data.adminUserId == request.auth.uid);
+
+        // The admin can remove other members, but never themselves this way.
+        allow delete: if isAdmin(holidayId)
+          && memberId != get(/databases/$(database)/documents/holidays/$(holidayId)).data.adminUserId;
+      }
+
+      // Children's totalPoints must be writable by any member (competition
+      // scoring updates other families' kids' totals), so this isn't
+      // restricted to the child's own parent -- matches current app behavior.
+      match /children/{childId} {
+        allow read, write: if isMember(holidayId);
+      }
+
+      match /trips/{tripId} {
+        allow read, write: if isMember(holidayId);
+      }
+
+      match /meals/{mealDate} {
+        allow read, write: if isMember(holidayId);
+      }
+
+      match /competitions/{compId} {
+        allow read, write: if isMember(holidayId);
+      }
+
+      match /cleaning/{taskId} {
+        allow read, write: if isMember(holidayId);
+      }
+
+      match /schedule/{entryId} {
+        allow read, write: if isMember(holidayId);
+      }
+    }
+
+    // Each user's own mirror of the holidays they belong to.
+    match /userHolidays/{uid}/holidays/{holidayId} {
+      allow read, write: if isSignedIn() && uid == request.auth.uid;
+    }
+  }
+}

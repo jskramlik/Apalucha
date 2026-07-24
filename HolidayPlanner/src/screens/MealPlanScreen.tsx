@@ -68,7 +68,7 @@ export default function MealPlanScreen() {
       openEdit(meal);
       navigation.setParams({ openMealDate: undefined });
     }
-  }, [route.params?.openMealDate, meals]);
+  }, [route.params?.openMealDate, meals, navigation]);
 
   const openEdit = (meal?: Meal) => {
     setIsEditing(!!meal);
