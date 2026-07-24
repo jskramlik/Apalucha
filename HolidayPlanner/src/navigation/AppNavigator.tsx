@@ -39,8 +39,9 @@ export default function AppNavigator() {
         tabBarIcon: ({ color, size, focused }) => {
           const base = ICONS[route.name] ?? 'ellipse';
           const name = focused ? base : (`${base}-outline` as keyof typeof Ionicons.glyphMap);
-          return <Ionicons name={name} size={size - 2} color={color} />;
+          return <Ionicons name={name} size={size + 4} color={color} />;
         },
+        tabBarShowLabel: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.tabBarInactive,
         tabBarStyle: {
@@ -64,8 +65,7 @@ export default function AppNavigator() {
             style={[StyleSheet.absoluteFill, { borderRadius: 24, overflow: 'hidden' }]}
           />
         ),
-        tabBarItemStyle: { paddingTop: 8 },
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '600' },
+        tabBarItemStyle: { paddingTop: 10 },
         headerStyle: { backgroundColor: colors.surface },
         headerTintColor: colors.textPrimary,
         headerShadowVisible: false,
@@ -85,7 +85,7 @@ export default function AppNavigator() {
         options={{
           title: t('admin'),
           tabBarButton: member?.role === 'admin' ? undefined : () => null,
-          tabBarItemStyle: member?.role === 'admin' ? { paddingTop: 8 } : { display: 'none' },
+          tabBarItemStyle: member?.role === 'admin' ? { paddingTop: 10 } : { display: 'none' },
         }}
       />
     </Tab.Navigator>
