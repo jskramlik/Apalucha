@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs, onSnapshot, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
 import { Member } from '../types';
 
@@ -73,15 +73,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const backfillKey = `${user.uid}:${holidayId}`;
           if (!backfilledRef.current.has(backfillKey)) {
             backfilledRef.current.add(backfillKey);
+
+            // Self-heal: apaluchas created before the "creator becomes
+            // admin" fix have the creator's member role stuck at 'dad'.
+            // holidays/{id}.adminUserId has always correctly held the
+            // creator's uid, so use it to correct any mismatch once.
+            const holidaySnap = await getDoc(doc(db, 'holidays', holidayId));
+            const holidayData = holidaySnap.exists() ? holidaySnap.data() : null;
+            if (holidayData?.adminUserId === user.uid && data.role !== 'admin') {
+              await updateDoc(doc(db, 'holidays', holidayId, 'members', user.uid), { role: 'admin' });
+              data.role = 'admin';
+            }
+
             const userHolidayRef = doc(db, 'userHolidays', user.uid, 'holidays', holidayId);
             const userHolidaySnap = await getDoc(userHolidayRef);
             if (!userHolidaySnap.exists()) {
-              const holidaySnap = await getDoc(doc(db, 'holidays', holidayId));
               await setDoc(userHolidayRef, {
-                holidayName: holidaySnap.exists() ? holidaySnap.data().name : 'Apalucha',
+                holidayName: holidayData ? holidayData.name : 'Apalucha',
                 role: data.role,
                 joinedAt: new Date().toISOString(),
               });
+            } else if (userHolidaySnap.data().role !== data.role) {
+              await updateDoc(userHolidayRef, { role: data.role });
             }
           }
         } else {
