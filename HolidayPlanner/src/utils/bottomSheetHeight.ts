@@ -20,11 +20,3 @@ export function clampSheetHeight(proposed: number, min: number, max: number): nu
 export function computeDraggedHeight(startHeight: number, dy: number, min: number, max: number): number {
   return clampSheetHeight(startHeight - dy, min, max);
 }
-
-// vy is in px/ms, matching React Native's PanResponder gestureState convention.
-export function shouldDismissOnRelease(dy: number, vy: number): boolean {
-  if (dy > 120) return true;
-  if (vy > 1.5) return true;
-  if (dy > 60 && vy > 0.8) return true;
-  return false;
-}

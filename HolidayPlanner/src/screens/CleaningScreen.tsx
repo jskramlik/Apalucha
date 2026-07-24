@@ -21,6 +21,7 @@ export default function CleaningScreen() {
   const [minDate, setMinDate] = useState<string | undefined>();
   const [maxDate, setMaxDate] = useState<string | undefined>();
   const [modalVisible, setModalVisible] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [task, setTask] = useState('');
   const [date, setDate] = useState('');
   const [assignedTo, setAssignedTo] = useState('');
@@ -51,11 +52,28 @@ export default function CleaningScreen() {
     return () => { unsubTasks(); unsubMembers(); unsubChildren(); };
   }, [holidayId]);
 
-  const handleAdd = async () => {
+  const openAdd = () => {
+    setEditingTaskId(null);
+    setTask(''); setDate(''); setAssignedTo('');
+    setModalVisible(true);
+  };
+
+  const openEdit = (item: CleaningTask) => {
+    setEditingTaskId(item.id);
+    setTask(item.task);
+    setDate(item.date);
+    setAssignedTo(item.assignedTo);
+    setModalVisible(true);
+  };
+
+  const handleSave = async () => {
     if (!task || !date || !assignedTo) { showAlert('Error', 'Task, date, and assignee are required'); return; }
     try {
-      await addDoc(collection(db, 'holidays', holidayId!, 'cleaning'), { task, date, assignedTo, done: false });
-      setTask(''); setDate(''); setAssignedTo('');
+      if (editingTaskId) {
+        await updateDoc(doc(db, 'holidays', holidayId!, 'cleaning', editingTaskId), { task, date, assignedTo });
+      } else {
+        await addDoc(collection(db, 'holidays', holidayId!, 'cleaning'), { task, date, assignedTo, done: false });
+      }
       setModalVisible(false);
     } catch (e: any) {
       showAlert('Error', e.message);
@@ -83,25 +101,34 @@ export default function CleaningScreen() {
         data={tasks}
         keyExtractor={i => i.id}
         renderItem={({ item }) => (
-          <TouchableOpacity onPress={() => toggleDone(item)} onLongPress={() => handleDelete(item.id)}>
-            <Card style={[styles.card, item.done && { opacity: 0.6 }]}>
+          <Card style={[styles.card, item.done && { opacity: 0.6 }]}>
+            <TouchableOpacity
+              style={styles.cardMain}
+              onPress={() => toggleDone(item)}
+              onLongPress={() => handleDelete(item.id)}
+            >
               <Text style={{ fontSize: 20, marginRight: 12 }}>{item.done ? '✅' : '⬜'}</Text>
               <View style={{ flex: 1 }}>
                 <Text style={[typography.subheading, { color: colors.textPrimary }, item.done && styles.taskDone]}>{item.task}</Text>
                 <Text style={[typography.small, { color: colors.textMuted, marginTop: 2 }]}>📅 {item.date} · 👤 {item.assignedTo}</Text>
               </View>
-            </Card>
-          </TouchableOpacity>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => openEdit(item)} style={{ padding: spacing.sm }}>
+              <Text style={{ fontSize: 16 }}>✏️</Text>
+            </TouchableOpacity>
+          </Card>
         )}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110 }}
         ListEmptyComponent={<EmptyState icon="brush-outline" text={t('noCleaning')} />}
       />
-      <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={() => setModalVisible(true)}>
+      <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={openAdd}>
         <Text style={[styles.fabText, { color: colors.primaryText }]}>+</Text>
       </TouchableOpacity>
 
       <BottomSheetModal visible={modalVisible} onClose={() => setModalVisible(false)}>
-        <Text style={[typography.heading, { color: colors.textPrimary, marginBottom: spacing.lg }]}>{t('addCleaningTask')}</Text>
+        <Text style={[typography.heading, { color: colors.textPrimary, marginBottom: spacing.lg }]}>
+          {editingTaskId ? t('edit') : t('addCleaningTask')}
+        </Text>
         <View style={styles.templateRow}>
           {TASK_TEMPLATE_KEYS.map(key => (
             <Chip key={key} label={t(key)} selected={task === t(key)} onPress={() => setTask(t(key))} />
@@ -117,7 +144,7 @@ export default function CleaningScreen() {
         </View>
         <View style={styles.row}>
           <Button label={t('cancel')} variant="ghost" onPress={() => setModalVisible(false)} />
-          <Button label={t('save')} onPress={handleAdd} />
+          <Button label={t('save')} onPress={handleSave} />
         </View>
       </BottomSheetModal>
     </Screen>
@@ -126,6 +153,7 @@ export default function CleaningScreen() {
 
 const styles = StyleSheet.create({
   card: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  cardMain: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   taskDone: { textDecorationLine: 'line-through' },
   fab: { position: 'absolute', bottom: 100, right: 24, width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 4 },
   fabText: { fontSize: 28, lineHeight: 32 },

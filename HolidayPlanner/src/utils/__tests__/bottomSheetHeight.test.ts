@@ -2,7 +2,6 @@ import {
   computeSheetHeightBounds,
   clampSheetHeight,
   computeDraggedHeight,
-  shouldDismissOnRelease,
 } from '../bottomSheetHeight';
 
 describe('computeSheetHeightBounds', () => {
@@ -50,27 +49,5 @@ describe('computeDraggedHeight', () => {
 
   it('clamps the result to the min bound', () => {
     expect(computeDraggedHeight(350, 200, 300, 900)).toBe(300);
-  });
-});
-
-describe('shouldDismissOnRelease', () => {
-  it('does not dismiss for a small, slow drag', () => {
-    expect(shouldDismissOnRelease(20, 0.2)).toBe(false);
-  });
-
-  it('dismisses on a large downward drag regardless of speed', () => {
-    expect(shouldDismissOnRelease(150, 0.1)).toBe(true);
-  });
-
-  it('dismisses on a fast flick regardless of distance', () => {
-    expect(shouldDismissOnRelease(10, 2)).toBe(true);
-  });
-
-  it('dismisses on a moderate drag combined with a moderate flick', () => {
-    expect(shouldDismissOnRelease(70, 0.9)).toBe(true);
-  });
-
-  it('does not dismiss on a moderate drag alone without enough speed', () => {
-    expect(shouldDismissOnRelease(70, 0.5)).toBe(false);
   });
 });

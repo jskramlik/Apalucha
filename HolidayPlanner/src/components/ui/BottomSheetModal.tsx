@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useTheme } from '../../theme/ThemeContext';
-import { computeSheetHeightBounds, computeDraggedHeight, shouldDismissOnRelease } from '../../utils/bottomSheetHeight';
+import { computeSheetHeightBounds, computeDraggedHeight } from '../../utils/bottomSheetHeight';
 
 interface Props {
   visible: boolean;
@@ -56,11 +56,6 @@ export default function BottomSheetModal({ visible, onClose, children, style }: 
         const next = computeDraggedHeight(dragStartHeightRef.current, gestureState.dy, min, max);
         heightAnim.setValue(next);
         heightRef.current = next;
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (shouldDismissOnRelease(gestureState.dy, gestureState.vy)) {
-          onClose();
-        }
       },
       onPanResponderTerminationRequest: () => false,
     })
