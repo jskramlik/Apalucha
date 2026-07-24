@@ -118,12 +118,7 @@ const styles = StyleSheet.create({
   container: { marginBottom: 8 },
   input: { fontSize: 15, borderWidth: StyleSheet.hairlineWidth },
   dropdown: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    zIndex: 20,
-    elevation: 6,
+    marginTop: 4,
     borderWidth: StyleSheet.hairlineWidth,
     maxHeight: 260,
     overflow: 'hidden',

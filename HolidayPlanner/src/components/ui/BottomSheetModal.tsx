@@ -1,7 +1,18 @@
-import React from 'react';
-import { Modal, View, TouchableOpacity, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import {
+  Modal,
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  StyleProp,
+  ViewStyle,
+  Animated,
+  PanResponder,
+  useWindowDimensions,
+} from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useTheme } from '../../theme/ThemeContext';
+import { computeSheetHeightBounds, computeDraggedHeight, shouldDismissOnRelease } from '../../utils/bottomSheetHeight';
 
 interface Props {
   visible: boolean;
@@ -12,6 +23,48 @@ interface Props {
 
 export default function BottomSheetModal({ visible, onClose, children, style }: Props) {
   const { colors, radius, isDark } = useTheme();
+  const { height: screenHeight } = useWindowDimensions();
+  const bounds = computeSheetHeightBounds(screenHeight);
+
+  // Kept in a ref (updated every render) so the PanResponder's handlers --
+  // created once via useRef below -- always see the latest bounds instead of
+  // closing over whatever screenHeight happened to be on first mount.
+  const boundsRef = useRef(bounds);
+  boundsRef.current = bounds;
+
+  const heightAnim = useRef(new Animated.Value(bounds.default)).current;
+  const heightRef = useRef(bounds.default);
+  const dragStartHeightRef = useRef(bounds.default);
+
+  useEffect(() => {
+    if (visible) {
+      const { default: defaultHeight } = computeSheetHeightBounds(screenHeight);
+      heightAnim.setValue(defaultHeight);
+      heightRef.current = defaultHeight;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, screenHeight]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        dragStartHeightRef.current = heightRef.current;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        const { min, max } = boundsRef.current;
+        const next = computeDraggedHeight(dragStartHeightRef.current, gestureState.dy, min, max);
+        heightAnim.setValue(next);
+        heightRef.current = next;
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (shouldDismissOnRelease(gestureState.dy, gestureState.vy)) {
+          onClose();
+        }
+      },
+      onPanResponderTerminationRequest: () => false,
+    })
+  ).current;
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -21,17 +74,20 @@ export default function BottomSheetModal({ visible, onClose, children, style }: 
           activeOpacity={1}
           onPress={() => {}}
           style={[
-            styles.sheet,
-            {
-              backgroundColor: colors.surface,
-              borderTopLeftRadius: radius.xl,
-              borderTopRightRadius: radius.xl,
-            },
+            styles.sheetOuter,
+            { backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl },
             style,
           ]}
         >
-          <View style={[styles.handle, { backgroundColor: colors.border }]} />
-          {children}
+          <Animated.View style={[styles.sheetInner, { height: heightAnim }]}>
+            <View
+              {...panResponder.panHandlers}
+              style={[styles.handleTouchArea, { userSelect: 'none' } as any]}
+            >
+              <View style={[styles.handle, { backgroundColor: colors.border }]} />
+            </View>
+            {children}
+          </Animated.View>
         </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
@@ -40,6 +96,8 @@ export default function BottomSheetModal({ visible, onClose, children, style }: 
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
-  sheet: { padding: 24, maxHeight: '88%' },
-  handle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  sheetOuter: { overflow: 'hidden' },
+  sheetInner: { padding: 24 },
+  handleTouchArea: { paddingVertical: 12, alignItems: 'center' },
+  handle: { width: 40, height: 4, borderRadius: 2 },
 });

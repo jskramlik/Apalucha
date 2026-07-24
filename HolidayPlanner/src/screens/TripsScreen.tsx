@@ -201,7 +201,7 @@ export default function TripsScreen() {
                 <Text style={[typography.small, { color: colors.secondary }]}>{item.date}</Text>
               </View>
               <Text style={[typography.subheading, { color: colors.textPrimary }]}>🗺️ {item.title}</Text>
-              {item.time && <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>⏰ {item.time}</Text>}
+              {item.time ? <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>⏰ {item.time}</Text> : null}
             </Card>
           </TouchableOpacity>
         )}
@@ -249,17 +249,20 @@ export default function TripsScreen() {
 
       {/* Details modal */}
       <BottomSheetModal visible={!!detailsTrip} onClose={() => setDetailsTrip(null)}>
-        <ScrollView>
-          {detailsTrip && (() => {
-            const stops = getTripStops(detailsTrip);
-            return (
-              <>
+        {detailsTrip && (() => {
+          const stops = getTripStops(detailsTrip);
+          return (
+            <>
+              {stops.length > 0 && (
+                <GoogleMapEmbed stops={stops} style={{ height: 260, marginBottom: spacing.md, borderRadius: radius.md }} />
+              )}
+              <ScrollView style={{ flex: 1 }}>
                 <Text style={[typography.heading, { color: colors.textPrimary }]}>🗺️ {detailsTrip.title}</Text>
                 <View style={[styles.dateTag, { backgroundColor: colors.secondary + '22', borderRadius: radius.sm, marginTop: spacing.sm }]}>
                   <Text style={[typography.small, { color: colors.secondary }]}>{detailsTrip.date}</Text>
                 </View>
-                {detailsTrip.time && <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>⏰ {detailsTrip.time}</Text>}
-                {detailsTrip.notes && <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>{detailsTrip.notes}</Text>}
+                {detailsTrip.time ? <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>⏰ {detailsTrip.time}</Text> : null}
+                {detailsTrip.notes ? <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>{detailsTrip.notes}</Text> : null}
 
                 {stops.length > 0 && (
                   <>
@@ -272,7 +275,6 @@ export default function TripsScreen() {
                         🚗 {detailsTrip.distanceKm} km · {detailsTrip.durationMin} min
                       </Text>
                     )}
-                    <GoogleMapEmbed stops={stops} style={{ marginTop: 8, borderRadius: radius.md }} />
                     <TouchableOpacity onPress={() => openInMaps(stops)}>
                       <Text style={[typography.caption, { color: colors.secondary, marginTop: spacing.sm, textDecorationLine: 'underline' }]}>📍 Open in Maps</Text>
                     </TouchableOpacity>
@@ -291,10 +293,10 @@ export default function TripsScreen() {
                   </TouchableOpacity>
                 </View>
                 <Button label={t('cancel')} variant="ghost" onPress={() => setDetailsTrip(null)} style={{ marginTop: spacing.sm }} />
-              </>
-            );
-          })()}
-        </ScrollView>
+              </ScrollView>
+            </>
+          );
+        })()}
       </BottomSheetModal>
 
       <BottomSheetModal visible={!!rsvpTrip} onClose={() => setRsvpTrip(null)}>

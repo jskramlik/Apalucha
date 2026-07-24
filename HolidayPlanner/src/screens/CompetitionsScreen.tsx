@@ -157,7 +157,7 @@ export default function CompetitionsScreen() {
           <Card style={{ marginBottom: spacing.md }}>
             <TouchableOpacity onPress={() => openScores(item)}>
               <Text style={[typography.subheading, { color: colors.textPrimary }]}>🏆 {item.name}</Text>
-              {item.description && <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>{item.description}</Text>}
+              {item.description ? <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>{item.description}</Text> : null}
               <View style={styles.badgeRow}>
                 {item.type === 'team' && <Badge label="🤝 Team" tone="secondary" />}
                 {item.lowestWins && <Badge label="🔻 Lowest wins" tone="muted" />}
