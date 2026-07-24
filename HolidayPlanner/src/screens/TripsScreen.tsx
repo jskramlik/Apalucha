@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Linking, ScrollView, Image } from 'react-native';
 import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../theme/ThemeContext';
 import { Trip, TripStop, Member, Child } from '../types';
 import DatePickerField from '../components/DatePickerField';
+import TimePickerField from '../components/TimePickerField';
 import { showAlert, showConfirm } from '../utils/alert';
 import { geocodeLocation } from '../utils/geocode';
 import { getRouteInfo } from '../utils/routing';
@@ -37,6 +39,8 @@ export default function TripsScreen() {
   const { t } = useTranslation();
   const { holidayId } = useAuth();
   const { colors, spacing, radius, typography } = useTheme();
+  const route = useRoute<any>();
+  const navigation = useNavigation<any>();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [minDate, setMinDate] = useState<string | undefined>();
@@ -77,6 +81,16 @@ export default function TripsScreen() {
     });
     return () => { unsubTrips(); unsubMembers(); unsubChildren(); };
   }, [holidayId]);
+
+  useEffect(() => {
+    const openTripId = route.params?.openTripId;
+    if (!openTripId) return;
+    const trip = trips.find(tr => tr.id === openTripId);
+    if (trip) {
+      setDetailsTrip(trip);
+      navigation.setParams({ openTripId: undefined });
+    }
+  }, [route.params?.openTripId, trips]);
 
   const openAdd = () => {
     setEditingTripId(null);
@@ -203,7 +217,7 @@ export default function TripsScreen() {
           <Text style={[typography.heading, { color: colors.textPrimary, marginBottom: spacing.lg }]}>{editingTripId ? t('edit') : t('addTrip')}</Text>
           <TextField placeholder={t('name')} value={title} onChangeText={setTitle} />
           <DatePickerField placeholder={t('date')} value={date} onChange={setDate} minDate={minDate} maxDate={maxDate} />
-          <TextField placeholder={t('time')} value={time} onChangeText={setTime} />
+          <TimePickerField placeholder={t('time')} value={time} onChange={setTime} />
           <Text style={[typography.caption, { color: colors.textSecondary, marginTop: spacing.sm, marginBottom: spacing.sm }]}>Stops (like building a route)</Text>
           {stopInputs.map((stop, idx) => (
             <View key={idx} style={styles.stopRow}>

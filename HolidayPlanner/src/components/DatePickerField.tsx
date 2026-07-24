@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { MONTH_NAMES, toIso, parseIso, nextMonth, previousMonth, buildCalendarCells, isWithinRange } from '../utils/dateUtils';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -11,9 +11,10 @@ interface Props {
   onChange: (isoDate: string) => void;
   minDate?: string;
   maxDate?: string;
+  style?: StyleProp<ViewStyle>;
 }
 
-export default function DatePickerField({ placeholder, value, onChange, minDate, maxDate }: Props) {
+export default function DatePickerField({ placeholder, value, onChange, minDate, maxDate, style }: Props) {
   const { colors, radius, spacing, typography } = useTheme();
   const [visible, setVisible] = useState(false);
   const parsed = parseIso(value);
@@ -46,7 +47,7 @@ export default function DatePickerField({ placeholder, value, onChange, minDate,
   return (
     <>
       <TouchableOpacity
-        style={[styles.input, { backgroundColor: colors.surfaceElevated, borderRadius: radius.md, borderColor: colors.border }]}
+        style={[styles.input, { backgroundColor: colors.surfaceElevated, borderRadius: radius.md, borderColor: colors.border }, style]}
         onPress={open}
       >
         <Text style={[typography.body, { color: value ? colors.textPrimary : colors.textMuted }]}>{value || placeholder}</Text>

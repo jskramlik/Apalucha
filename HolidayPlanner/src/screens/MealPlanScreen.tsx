@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { doc, setDoc, deleteDoc, onSnapshot, collection, getDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../theme/ThemeContext';
@@ -17,6 +18,8 @@ export default function MealPlanScreen() {
   const { t } = useTranslation();
   const { holidayId } = useAuth();
   const { colors, spacing, radius, typography } = useTheme();
+  const route = useRoute<any>();
+  const navigation = useNavigation<any>();
   const [meals, setMeals] = useState<Meal[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [minDate, setMinDate] = useState<string | undefined>();
@@ -56,6 +59,16 @@ export default function MealPlanScreen() {
     });
     return () => { unsubMeals(); unsubMembers(); unsubChildren(); };
   }, [holidayId]);
+
+  useEffect(() => {
+    const openMealDate = route.params?.openMealDate;
+    if (!openMealDate) return;
+    const meal = meals.find(m => m.date === openMealDate);
+    if (meal) {
+      openEdit(meal);
+      navigation.setParams({ openMealDate: undefined });
+    }
+  }, [route.params?.openMealDate, meals]);
 
   const openEdit = (meal?: Meal) => {
     setIsEditing(!!meal);

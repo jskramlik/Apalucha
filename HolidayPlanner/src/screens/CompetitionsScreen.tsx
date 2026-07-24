@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView } from 'react-native';
 import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../theme/ThemeContext';
@@ -17,6 +18,8 @@ export default function CompetitionsScreen() {
   const { t } = useTranslation();
   const { holidayId } = useAuth();
   const { colors, spacing, typography } = useTheme();
+  const route = useRoute<any>();
+  const navigation = useNavigation<any>();
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [members, setMembers] = useState<(Member | Child)[]>([]);
   const [addModalVisible, setAddModalVisible] = useState(false);
@@ -49,6 +52,16 @@ export default function CompetitionsScreen() {
     });
     return () => { unsubComps(); unsubMembers(); unsubChildren(); };
   }, [holidayId]);
+
+  useEffect(() => {
+    const openCompId = route.params?.openCompId;
+    if (!openCompId) return;
+    const comp = competitions.find(c => c.id === openCompId);
+    if (comp) {
+      openScores(comp);
+      navigation.setParams({ openCompId: undefined });
+    }
+  }, [route.params?.openCompId, competitions]);
 
   const openAdd = () => {
     setEditingCompId(null);

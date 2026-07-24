@@ -2,12 +2,15 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable } from 'react-native';
 import { collection, onSnapshot, doc, getDoc, addDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
+import { useNavigation } from '@react-navigation/native';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../theme/ThemeContext';
 import { Trip, Meal, CleaningTask, Holiday, Competition, ScheduleEntry } from '../types';
 import { showAlert } from '../utils/alert';
-import { Screen, Card, TextField, Button, EmptyState } from '../components/ui';
+import { Screen, Card, Button, EmptyState } from '../components/ui';
+import DatePickerField from '../components/DatePickerField';
+import TimePickerField from '../components/TimePickerField';
 
 function addDays(iso: string, delta: number): string {
   const d = new Date(`${iso}T00:00:00`);
@@ -26,6 +29,7 @@ export default function HomeScreen() {
   const { t } = useTranslation();
   const { holidayId } = useAuth();
   const { colors, spacing, radius, typography } = useTheme();
+  const navigation = useNavigation<any>();
   const [holiday, setHoliday] = useState<Holiday | null>(null);
   const [selectedDate, setSelectedDate] = useState('');
   const [tripsOnDate, setTripsOnDate] = useState<Trip[]>([]);
@@ -138,6 +142,12 @@ export default function HomeScreen() {
     }
   };
 
+  const openEntrySource = (entry: ScheduleEntry) => {
+    if (entry.refType === 'trip') navigation.navigate('Trips', { openTripId: entry.refId });
+    else if (entry.refType === 'meal') navigation.navigate('Meals', { openMealDate: entry.refId });
+    else if (entry.refType === 'competition') navigation.navigate('Competitions', { openCompId: entry.refId });
+  };
+
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ paddingBottom: 110 }}>
@@ -152,9 +162,18 @@ export default function HomeScreen() {
           >
             <Text style={[styles.navArrow, { color: canGoPrev ? colors.primary : colors.textMuted }]}>‹</Text>
           </Pressable>
-          <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', flex: 1 }]}>
-            {selectedDate ? formatDisplayDate(selectedDate) : ''}
-          </Text>
+          {holiday ? (
+            <DatePickerField
+              placeholder="Select date"
+              value={selectedDate}
+              onChange={setSelectedDate}
+              minDate={holiday.startDate}
+              maxDate={holiday.endDate}
+              style={styles.dateField}
+            />
+          ) : (
+            <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', flex: 1 }]} />
+          )}
           <Pressable
             style={({ pressed }) => [styles.navButton, pressed && canGoNext && { backgroundColor: colors.surfaceElevated }]}
             onPress={goNext}
@@ -172,12 +191,14 @@ export default function HomeScreen() {
           </View>
           {scheduleEntries.length === 0 ? <EmptyState icon="calendar-outline" text={t('noSchedule')} /> : scheduleEntries.map(entry => (
             <View key={entry.id} style={[styles.scheduleRow, { borderBottomColor: colors.border }]}>
-              {entry.timeFrom ? (
-                <Text style={[typography.caption, { color: colors.primary, width: 90 }]}>
-                  {entry.timeFrom}{entry.timeTo ? `–${entry.timeTo}` : ''}
-                </Text>
-              ) : null}
-              <Text style={[typography.body, { color: colors.textPrimary, flex: 1 }]}>{entry.label}</Text>
+              <TouchableOpacity style={styles.scheduleRowMain} onPress={() => openEntrySource(entry)}>
+                {entry.timeFrom ? (
+                  <Text style={[typography.caption, { color: colors.primary, width: 90 }]}>
+                    {entry.timeFrom}{entry.timeTo ? `–${entry.timeTo}` : ''}
+                  </Text>
+                ) : null}
+                <Text style={[typography.body, { color: colors.textPrimary, flex: 1 }]}>{entry.label}</Text>
+              </TouchableOpacity>
               <TouchableOpacity onPress={() => handleRemoveEntry(entry.id)}>
                 <Text style={{ fontSize: 16, color: colors.error, paddingHorizontal: spacing.sm }}>✕</Text>
               </TouchableOpacity>
@@ -203,8 +224,8 @@ export default function HomeScreen() {
               <View style={[styles.handle, { backgroundColor: colors.border }]} />
               <Text style={[typography.heading, { color: colors.textPrimary, marginBottom: spacing.lg }]}>{t('selectItem')}</Text>
               <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                <TextField style={{ flex: 1 }} placeholder="From (e.g. 14:30)" value={pickerTimeFrom} onChangeText={setPickerTimeFrom} />
-                <TextField style={{ flex: 1 }} placeholder="To (e.g. 16:00)" value={pickerTimeTo} onChangeText={setPickerTimeTo} />
+                <TimePickerField style={{ flex: 1 }} placeholder="From" value={pickerTimeFrom} onChange={setPickerTimeFrom} />
+                <TimePickerField style={{ flex: 1 }} placeholder="To" value={pickerTimeTo} onChange={setPickerTimeTo} />
               </View>
               <ScrollView style={{ maxHeight: 360 }}>
                 {tripsOnDate.length > 0 && (
@@ -251,11 +272,13 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  dayNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20, paddingHorizontal: 20, marginBottom: 4 },
+  dayNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 20, marginBottom: 4 },
   navButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   navArrow: { fontSize: 28, fontWeight: '700' },
+  dateField: { flex: 1, marginBottom: 0, alignItems: 'center' },
   scheduleHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   scheduleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+  scheduleRowMain: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 },
   item: { paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth },
   overlay: { justifyContent: 'flex-end' },
   sheet: { padding: 24, maxHeight: '85%' },
