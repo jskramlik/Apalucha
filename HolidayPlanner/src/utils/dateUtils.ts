@@ -44,3 +44,10 @@ export function buildCalendarCells(year: number, month: number): (number | null)
   const leadingBlanks = firstWeekdayOfMonth(year, month);
   return [...Array(leadingBlanks).fill(null), ...Array.from({ length: totalDays }, (_, i) => i + 1)];
 }
+
+export function isWithinRange(year: number, month: number, day: number, minDate?: string, maxDate?: string): boolean {
+  const iso = toIso(year, month, day);
+  if (minDate && iso < minDate) return false;
+  if (maxDate && iso > maxDate) return false;
+  return true;
+}

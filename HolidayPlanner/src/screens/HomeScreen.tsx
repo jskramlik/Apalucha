@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable, Modal, TextInput } from 'react-native';
 import { collection, onSnapshot, doc, getDoc, addDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
@@ -10,11 +10,14 @@ import { showAlert } from '../utils/alert';
 function addDays(iso: string, delta: number): string {
   const d = new Date(`${iso}T00:00:00`);
   d.setDate(d.getDate() + delta);
+  if (isNaN(d.getTime())) return iso;
   return d.toISOString().split('T')[0];
 }
 
 function formatDisplayDate(iso: string): string {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+  const d = new Date(`${iso}T00:00:00`);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
 export default function HomeScreen() {
@@ -28,7 +31,8 @@ export default function HomeScreen() {
   const [cleaningTasks, setCleaningTasks] = useState<CleaningTask[]>([]);
   const [scheduleEntries, setScheduleEntries] = useState<ScheduleEntry[]>([]);
   const [pickerVisible, setPickerVisible] = useState(false);
-  const [pickerTime, setPickerTime] = useState('');
+  const [pickerTimeFrom, setPickerTimeFrom] = useState('');
+  const [pickerTimeTo, setPickerTimeTo] = useState('');
 
   useEffect(() => {
     if (!holidayId) return;
@@ -62,9 +66,9 @@ export default function HomeScreen() {
       query(collection(db, 'holidays', holidayId, 'schedule'), where('date', '==', selectedDate)),
       snap => setScheduleEntries(
         snap.docs.map(d => ({ id: d.id, ...d.data() } as ScheduleEntry)).sort((a, b) => {
-          if (a.time && b.time) return a.time.localeCompare(b.time);
-          if (a.time) return -1;
-          if (b.time) return 1;
+          if (a.timeFrom && b.timeFrom) return a.timeFrom.localeCompare(b.timeFrom);
+          if (a.timeFrom) return -1;
+          if (b.timeFrom) return 1;
           return a.order - b.order;
         })
       )
@@ -76,6 +80,22 @@ export default function HomeScreen() {
   const canGoPrev = holiday ? selectedDate > holiday.startDate : false;
   const canGoNext = holiday ? selectedDate < holiday.endDate : false;
 
+  const goPrev = () => {
+    try {
+      if (canGoPrev) setSelectedDate(prev => addDays(prev, -1));
+    } catch (e: any) {
+      showAlert('Error', e.message ?? 'Could not go to the previous day');
+    }
+  };
+
+  const goNext = () => {
+    try {
+      if (canGoNext) setSelectedDate(prev => addDays(prev, 1));
+    } catch (e: any) {
+      showAlert('Error', e.message ?? 'Could not go to the next day');
+    }
+  };
+
   const mealPickerItems = useMemo(() => {
     if (!meal) return [];
     const items: { label: string; refId: string }[] = [];
@@ -86,7 +106,8 @@ export default function HomeScreen() {
   }, [meal, selectedDate, t]);
 
   const openPicker = () => {
-    setPickerTime('');
+    setPickerTimeFrom('');
+    setPickerTimeTo('');
     setPickerVisible(true);
   };
 
@@ -96,7 +117,8 @@ export default function HomeScreen() {
       const order = scheduleEntries.length;
       await addDoc(collection(db, 'holidays', holidayId, 'schedule'), {
         date: selectedDate, order, refType, refId, label,
-        ...(pickerTime ? { time: pickerTime } : {}),
+        ...(pickerTimeFrom ? { timeFrom: pickerTimeFrom } : {}),
+        ...(pickerTimeTo ? { timeTo: pickerTimeTo } : {}),
       });
       setPickerVisible(false);
     } catch (e: any) {
@@ -118,21 +140,19 @@ export default function HomeScreen() {
       <Text style={styles.title}>{holiday?.name ?? '🏕️ Apalucha Planner'}</Text>
 
       <View style={styles.dayNav}>
-        <TouchableOpacity
-          style={styles.navButton}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          onPress={() => { if (canGoPrev) setSelectedDate(addDays(selectedDate, -1)); }}
+        <Pressable
+          style={({ pressed }) => [styles.navButton, pressed && canGoPrev && styles.navButtonPressed]}
+          onPress={goPrev}
         >
           <Text style={[styles.navArrow, !canGoPrev && styles.navArrowDisabled]}>‹</Text>
-        </TouchableOpacity>
+        </Pressable>
         <Text style={styles.date}>{selectedDate ? formatDisplayDate(selectedDate) : ''}</Text>
-        <TouchableOpacity
-          style={styles.navButton}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          onPress={() => { if (canGoNext) setSelectedDate(addDays(selectedDate, 1)); }}
+        <Pressable
+          style={({ pressed }) => [styles.navButton, pressed && canGoNext && styles.navButtonPressed]}
+          onPress={goNext}
         >
           <Text style={[styles.navArrow, !canGoNext && styles.navArrowDisabled]}>›</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       <View style={styles.section}>
@@ -144,7 +164,9 @@ export default function HomeScreen() {
         </View>
         {scheduleEntries.length === 0 ? <Empty text={t('noSchedule')} /> : scheduleEntries.map(entry => (
           <View key={entry.id} style={styles.scheduleRow}>
-            {entry.time ? <Text style={styles.scheduleTime}>{entry.time}</Text> : null}
+            {entry.timeFrom ? (
+              <Text style={styles.scheduleTime}>{entry.timeFrom}{entry.timeTo ? `–${entry.timeTo}` : ''}</Text>
+            ) : null}
             <Text style={styles.scheduleLabel}>{entry.label}</Text>
             <TouchableOpacity onPress={() => handleRemoveEntry(entry.id)}>
               <Text style={styles.removeEntryText}>✕</Text>
@@ -162,12 +184,20 @@ export default function HomeScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>{t('selectItem')}</Text>
-            <TextInput
-              style={styles.timeInput}
-              placeholder={`${t('time')} (e.g. 14:30)`}
-              value={pickerTime}
-              onChangeText={setPickerTime}
-            />
+            <View style={styles.timeRow}>
+              <TextInput
+                style={[styles.timeInput, { flex: 1 }]}
+                placeholder="From (e.g. 14:30)"
+                value={pickerTimeFrom}
+                onChangeText={setPickerTimeFrom}
+              />
+              <TextInput
+                style={[styles.timeInput, { flex: 1 }]}
+                placeholder="To (e.g. 16:00)"
+                value={pickerTimeTo}
+                onChangeText={setPickerTimeTo}
+              />
+            </View>
             <ScrollView style={{ maxHeight: 400 }}>
               {tripsOnDate.length > 0 && (
                 <>
@@ -239,8 +269,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   title: { fontSize: 22, fontWeight: 'bold', color: '#2e7d32', padding: 20, paddingBottom: 4 },
   dayNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20, paddingHorizontal: 20, marginBottom: 8 },
-  navButton: { padding: 4 },
-  navArrow: { fontSize: 28, color: '#2e7d32', fontWeight: '700', paddingHorizontal: 12 },
+  navButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  navButtonPressed: { backgroundColor: '#e8f5e9' },
+  navArrow: { fontSize: 28, color: '#2e7d32', fontWeight: '700' },
   navArrowDisabled: { color: '#ccc' },
   date: { fontSize: 15, color: '#666', textAlign: 'center', flex: 1 },
   section: { margin: 12, backgroundColor: '#fff', borderRadius: 12, padding: 16, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
@@ -248,7 +279,7 @@ const styles = StyleSheet.create({
   scheduleHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   addToScheduleText: { fontSize: 13, color: '#2e7d32', fontWeight: '600' },
   scheduleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  scheduleTime: { fontSize: 13, color: '#2e7d32', fontWeight: '700', width: 48 },
+  scheduleTime: { fontSize: 13, color: '#2e7d32', fontWeight: '700', width: 90 },
   scheduleLabel: { fontSize: 15, color: '#333', flex: 1 },
   removeEntryText: { fontSize: 16, color: '#c62828', paddingHorizontal: 8 },
   item: { paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
@@ -258,6 +289,7 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   modal: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24 },
   modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 16, color: '#333' },
+  timeRow: { flexDirection: 'row', gap: 8 },
   timeInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 10, fontSize: 15 },
   pickerGroupLabel: { fontSize: 12, color: '#888', fontWeight: '700', marginTop: 12, marginBottom: 6, textTransform: 'uppercase' },
   pickerRow: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },

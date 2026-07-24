@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput } from 'react-native';
-import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
@@ -15,6 +15,8 @@ export default function CleaningScreen() {
   const { holidayId } = useAuth();
   const [tasks, setTasks] = useState<CleaningTask[]>([]);
   const [members, setMembers] = useState<(Member | Child)[]>([]);
+  const [minDate, setMinDate] = useState<string | undefined>();
+  const [maxDate, setMaxDate] = useState<string | undefined>();
   const [modalVisible, setModalVisible] = useState(false);
   const [task, setTask] = useState('');
   const [date, setDate] = useState('');
@@ -22,6 +24,13 @@ export default function CleaningScreen() {
 
   useEffect(() => {
     if (!holidayId) return;
+    getDoc(doc(db, 'holidays', holidayId)).then(snap => {
+      if (snap.exists()) {
+        setMinDate(snap.data().startDate);
+        setMaxDate(snap.data().endDate);
+      }
+    });
+
     let membersList: (Member | Child)[] = [];
     let childrenList: (Member | Child)[] = [];
 
@@ -98,7 +107,7 @@ export default function CleaningScreen() {
               ))}
             </View>
             <TextInput style={styles.input} placeholder={t('task')} value={task} onChangeText={setTask} />
-            <DatePickerField placeholder={t('date')} value={date} onChange={setDate} />
+            <DatePickerField placeholder={t('date')} value={date} onChange={setDate} minDate={minDate} maxDate={maxDate} />
             <Text style={styles.label}>{t('assignedTo')}:</Text>
             <View style={styles.memberList}>
               {members.map(m => (

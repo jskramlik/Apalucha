@@ -6,6 +6,7 @@ import {
   nextMonth,
   previousMonth,
   buildCalendarCells,
+  isWithinRange,
   MONTH_NAMES,
 } from '../dateUtils';
 
@@ -103,6 +104,29 @@ describe('buildCalendarCells', () => {
   it('has zero leading blanks when the month starts on a Monday', () => {
     const cells = buildCalendarCells(2026, 5);
     expect(cells[0]).toBe(1);
+  });
+});
+
+describe('isWithinRange', () => {
+  it('returns true when no bounds are given', () => {
+    expect(isWithinRange(2026, 5, 15)).toBe(true);
+  });
+
+  it('returns false for a date before minDate', () => {
+    expect(isWithinRange(2026, 5, 1, '2026-06-10')).toBe(false);
+  });
+
+  it('returns false for a date after maxDate', () => {
+    expect(isWithinRange(2026, 5, 20, undefined, '2026-06-10')).toBe(false);
+  });
+
+  it('returns true for a date within both bounds', () => {
+    expect(isWithinRange(2026, 5, 15, '2026-06-01', '2026-06-30')).toBe(true);
+  });
+
+  it('treats the boundary dates themselves as within range', () => {
+    expect(isWithinRange(2026, 5, 1, '2026-06-01', '2026-06-30')).toBe(true);
+    expect(isWithinRange(2026, 5, 30, '2026-06-01', '2026-06-30')).toBe(true);
   });
 });
 

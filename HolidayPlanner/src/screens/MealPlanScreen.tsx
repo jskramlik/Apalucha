@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput } from 'react-native';
-import { doc, setDoc, deleteDoc, onSnapshot, collection } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc, onSnapshot, collection, getDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,6 +16,8 @@ export default function MealPlanScreen() {
   const { holidayId } = useAuth();
   const [meals, setMeals] = useState<Meal[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [minDate, setMinDate] = useState<string | undefined>();
+  const [maxDate, setMaxDate] = useState<string | undefined>();
   const [modalVisible, setModalVisible] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
@@ -28,6 +30,13 @@ export default function MealPlanScreen() {
 
   useEffect(() => {
     if (!holidayId) return;
+    getDoc(doc(db, 'holidays', holidayId)).then(snap => {
+      if (snap.exists()) {
+        setMinDate(snap.data().startDate);
+        setMaxDate(snap.data().endDate);
+      }
+    });
+
     let membersList: Participant[] = [];
     let childrenList: Participant[] = [];
 
@@ -105,7 +114,7 @@ export default function MealPlanScreen() {
           <View style={styles.modal}>
             <ScrollView>
               <Text style={styles.modalTitle}>{t('addMeal')}</Text>
-              <DatePickerField placeholder={t('date')} value={selectedDate} onChange={setSelectedDate} />
+              <DatePickerField placeholder={t('date')} value={selectedDate} onChange={setSelectedDate} minDate={minDate} maxDate={maxDate} />
               <TextInput style={styles.input} placeholder={t('breakfast')} value={breakfast} onChangeText={setBreakfast} />
               <MemberPicker label={t('breakfastCook')} people={participants} value={breakfastCook} onChange={setBreakfastCook} />
               <TextInput style={styles.input} placeholder={t('lunch')} value={lunch} onChangeText={setLunch} />

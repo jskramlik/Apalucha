@@ -45,6 +45,12 @@ export interface Meal {
   dinnerCook?: string;
 }
 
+export interface TripStop {
+  label: string;
+  lat: number;
+  lng: number;
+}
+
 export interface Trip {
   id: string;
   title: string;
@@ -53,6 +59,9 @@ export interface Trip {
   location?: string;
   lat?: number;
   lng?: number;
+  stops?: TripStop[];
+  distanceKm?: number;
+  durationMin?: number;
   notes?: string;
   imageUrl?: string;
   rsvp?: Record<string, boolean>;
@@ -89,7 +98,8 @@ export interface ScheduleEntry {
   id: string;
   date: string;
   order: number;
-  time?: string;
+  timeFrom?: string;
+  timeTo?: string;
   refType: ScheduleRefType;
   refId: string;
   label: string;

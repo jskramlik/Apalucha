@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
-import { MONTH_NAMES, toIso, parseIso, nextMonth, previousMonth, buildCalendarCells } from '../utils/dateUtils';
+import { MONTH_NAMES, toIso, parseIso, nextMonth, previousMonth, buildCalendarCells, isWithinRange } from '../utils/dateUtils';
 
 const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
@@ -8,19 +8,22 @@ interface Props {
   placeholder: string;
   value: string;
   onChange: (isoDate: string) => void;
+  minDate?: string;
+  maxDate?: string;
 }
 
-export default function DatePickerField({ placeholder, value, onChange }: Props) {
+export default function DatePickerField({ placeholder, value, onChange, minDate, maxDate }: Props) {
   const [visible, setVisible] = useState(false);
   const parsed = parseIso(value);
   const today = new Date();
-  const [viewYear, setViewYear] = useState(parsed?.year ?? today.getFullYear());
-  const [viewMonth, setViewMonth] = useState(parsed?.month ?? today.getMonth());
+  const defaultParsed = parseIso(minDate ?? '');
+  const [viewYear, setViewYear] = useState(parsed?.year ?? defaultParsed?.year ?? today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(parsed?.month ?? defaultParsed?.month ?? today.getMonth());
 
   const open = () => {
     const current = parseIso(value);
-    setViewYear(current?.year ?? today.getFullYear());
-    setViewMonth(current?.month ?? today.getMonth());
+    setViewYear(current?.year ?? defaultParsed?.year ?? today.getFullYear());
+    setViewMonth(current?.month ?? defaultParsed?.month ?? today.getMonth());
     setVisible(true);
   };
 
@@ -31,6 +34,7 @@ export default function DatePickerField({ placeholder, value, onChange }: Props)
   };
 
   const selectDay = (day: number) => {
+    if (!isWithinRange(viewYear, viewMonth, day, minDate, maxDate)) return;
     onChange(toIso(viewYear, viewMonth, day));
     setVisible(false);
   };
@@ -65,14 +69,16 @@ export default function DatePickerField({ placeholder, value, onChange }: Props)
             <View style={styles.grid}>
               {cells.map((day, idx) => {
                 const isSelected = day !== null && parsed?.year === viewYear && parsed?.month === viewMonth && parsed?.day === day;
+                const inRange = day === null || isWithinRange(viewYear, viewMonth, day, minDate, maxDate);
                 return (
                   <View key={idx} style={styles.cellWrapper}>
                     {day !== null && (
                       <TouchableOpacity
                         style={[styles.dayCell, isSelected && styles.dayCellSelected]}
                         onPress={() => selectDay(day)}
+                        disabled={!inRange}
                       >
-                        <Text style={[styles.dayText, isSelected && styles.dayTextSelected]}>{day}</Text>
+                        <Text style={[styles.dayText, isSelected && styles.dayTextSelected, !inRange && styles.dayTextDisabled]}>{day}</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -104,4 +110,5 @@ const styles = StyleSheet.create({
   dayCellSelected: { backgroundColor: '#2e7d32' },
   dayText: { fontSize: 14, color: '#333' },
   dayTextSelected: { color: '#fff', fontWeight: '700' },
+  dayTextDisabled: { color: '#ddd' },
 });
