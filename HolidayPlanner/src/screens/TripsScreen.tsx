@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Linking, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Linking, ScrollView } from 'react-native';
 import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -9,24 +9,18 @@ import { useTheme } from '../theme/ThemeContext';
 import { Trip, TripStop, Member, Child } from '../types';
 import DatePickerField from '../components/DatePickerField';
 import TimePickerField from '../components/TimePickerField';
+import LocationAutocompleteField, { ResolvedPlace } from '../components/LocationAutocompleteField';
+import GoogleMapEmbed from '../components/GoogleMapEmbed';
 import { showAlert, showConfirm } from '../utils/alert';
-import { geocodeLocation } from '../utils/geocode';
 import { getRouteInfo } from '../utils/routing';
 import { Screen, Card, TextField, Button, EmptyState, BottomSheetModal } from '../components/ui';
 
 type Participant = (Member | Child) & { id: string };
 
-// Free static map image (no API key, works identically on web and native --
-// react-native-webview explicitly does not support the web platform, so an
-// <Image> avoids that native-only limitation entirely).
-function staticMapUrl(stops: TripStop[]): string {
-  const lats = stops.map(s => s.lat);
-  const lngs = stops.map(s => s.lng);
-  const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
-  const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
-  const markers = stops.map(s => `${s.lat},${s.lng},lightblue1`).join('|');
-  const path = stops.length > 1 ? `&path=color:blue|weight:3|${stops.map(s => `${s.lat},${s.lng}`).join('|')}` : '';
-  return `https://staticmap.openstreetmap.de/staticmap.php?center=${centerLat},${centerLng}&zoom=12&size=400x200&maptype=mapnik&markers=${markers}${path}`;
+interface StopInput {
+  label: string;
+  lat: number | null;
+  lng: number | null;
 }
 
 function getTripStops(trip: Trip): TripStop[] {
@@ -52,7 +46,7 @@ export default function TripsScreen() {
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
-  const [stopInputs, setStopInputs] = useState<string[]>(['']);
+  const [stopInputs, setStopInputs] = useState<StopInput[]>([{ label: '', lat: null, lng: null }]);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -94,7 +88,7 @@ export default function TripsScreen() {
 
   const openAdd = () => {
     setEditingTripId(null);
-    setTitle(''); setDate(''); setTime(''); setStopInputs(['']); setNotes('');
+    setTitle(''); setDate(''); setTime(''); setStopInputs([{ label: '', lat: null, lng: null }]); setNotes('');
     setModalVisible(true);
   };
 
@@ -105,31 +99,36 @@ export default function TripsScreen() {
     setDate(trip.date);
     setTime(trip.time ?? '');
     const existingStops = getTripStops(trip);
-    setStopInputs(existingStops.length > 0 ? existingStops.map(s => s.label) : ['']);
+    setStopInputs(
+      existingStops.length > 0
+        ? existingStops.map(s => ({ label: s.label, lat: s.lat, lng: s.lng }))
+        : [{ label: '', lat: null, lng: null }]
+    );
     setNotes(trip.notes ?? '');
     setModalVisible(true);
   };
 
-  const updateStopInput = (index: number, value: string) => {
-    setStopInputs(prev => prev.map((s, i) => (i === index ? value : s)));
+  const updateStopText = (index: number, text: string) => {
+    // Typing invalidates any previously-resolved coordinates for this stop.
+    setStopInputs(prev => prev.map((s, i) => (i === index ? { label: text, lat: null, lng: null } : s)));
   };
 
-  const addStopInput = () => setStopInputs(prev => [...prev, '']);
+  const selectStopPlace = (index: number, place: ResolvedPlace) => {
+    setStopInputs(prev => prev.map((s, i) => (i === index ? { label: place.label, lat: place.lat, lng: place.lng } : s)));
+  };
+
+  const addStopInput = () => setStopInputs(prev => [...prev, { label: '', lat: null, lng: null }]);
   const removeStopInput = (index: number) => setStopInputs(prev => prev.filter((_, i) => i !== index));
 
   const handleSaveTrip = async () => {
     if (!title || !date) { showAlert('Error', 'Name and date are required'); return; }
-    const stopLabels = stopInputs.map(s => s.trim()).filter(Boolean);
+    const nonBlankStops = stopInputs.filter(s => s.label.trim());
+    const unresolved = nonBlankStops.find(s => s.lat == null || s.lng == null);
+    if (unresolved) { showAlert('Error', `Please pick a suggestion for "${unresolved.label}"`); return; }
+
     setSaving(true);
     try {
-      const geocoded: TripStop[] = [];
-      for (let i = 0; i < stopLabels.length; i++) {
-        // Nominatim's usage policy asks for max ~1 request/sec between calls.
-        if (i > 0) await new Promise(resolve => setTimeout(resolve, 1100));
-        const coords = await geocodeLocation(stopLabels[i]);
-        if (coords) geocoded.push({ label: stopLabels[i], ...coords });
-      }
-
+      const geocoded: TripStop[] = nonBlankStops.map(s => ({ label: s.label, lat: s.lat!, lng: s.lng! }));
       const routeInfo = geocoded.length >= 2 ? await getRouteInfo(geocoded) : null;
 
       const data = {
@@ -223,11 +222,12 @@ export default function TripsScreen() {
           <Text style={[typography.caption, { color: colors.textSecondary, marginTop: spacing.sm, marginBottom: spacing.sm }]}>Stops (like building a route)</Text>
           {stopInputs.map((stop, idx) => (
             <View key={idx} style={styles.stopRow}>
-              <TextField
+              <LocationAutocompleteField
                 style={{ flex: 1, marginBottom: 0 }}
                 placeholder={idx === 0 ? 'Start' : idx === stopInputs.length - 1 ? 'End' : `Stop ${idx}`}
-                value={stop}
-                onChangeText={v => updateStopInput(idx, v)}
+                value={stop.label}
+                onChangeText={v => updateStopText(idx, v)}
+                onSelectPlace={place => selectStopPlace(idx, place)}
               />
               {stopInputs.length > 1 && (
                 <TouchableOpacity onPress={() => removeStopInput(idx)} style={{ padding: spacing.sm }}>
@@ -272,7 +272,7 @@ export default function TripsScreen() {
                         🚗 {detailsTrip.distanceKm} km · {detailsTrip.durationMin} min
                       </Text>
                     )}
-                    <Image source={{ uri: staticMapUrl(stops) }} style={[styles.mapPreview, { borderRadius: radius.md }]} resizeMode="cover" />
+                    <GoogleMapEmbed stops={stops} style={{ marginTop: 8, borderRadius: radius.md }} />
                     <TouchableOpacity onPress={() => openInMaps(stops)}>
                       <Text style={[typography.caption, { color: colors.secondary, marginTop: spacing.sm, textDecorationLine: 'underline' }]}>📍 Open in Maps</Text>
                     </TouchableOpacity>
@@ -321,7 +321,6 @@ const styles = StyleSheet.create({
   fab: { position: 'absolute', bottom: 100, right: 24, width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 4 },
   fabText: { fontSize: 28, lineHeight: 32 },
   stopRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  mapPreview: { height: 180, marginTop: 8 },
   row: { flexDirection: 'row', justifyContent: 'flex-end', gap: 16, marginTop: 12, alignItems: 'center' },
   rsvpRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
 });
